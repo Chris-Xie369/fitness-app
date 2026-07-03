@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #F1ECE0;
+  --color-surface: #FBF8F1;
+  --color-ink: #211C16;
+  --color-muted: #8C8275;
+  --color-line: #E2DBCD;
+  --color-clay: #B8553A;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, "Songti SC", "STSong", serif;
+}
+
+/* 关键：让根节点链路都有确定高度，App 才能用 h-full 铺满任何预览面板（不依赖 100vh）*/
+html, body, #root { height: 100%; }
+
+:root { color-scheme: light; }
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
