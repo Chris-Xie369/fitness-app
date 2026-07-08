@@ -1,22 +1,38 @@
-import type { Workout } from './types'
+import type { BodyEntry, Workout } from './types'
 
-const STORAGE_KEY = 'fitness-app:workouts'
+const WORKOUTS_KEY = 'fitness-app:workouts'
+const BODY_KEY = 'fitness-app:body'
 
-// 读：失败或为空返回空数组
 export function loadWorkouts(): Workout[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(WORKOUTS_KEY)
     return raw ? (JSON.parse(raw) as Workout[]) : []
   } catch {
     return []
   }
 }
 
-// 写：失败（隐私模式/满了）静默忽略
 export function saveWorkouts(workouts: Workout[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts))
+    localStorage.setItem(WORKOUTS_KEY, JSON.stringify(workouts))
   } catch {
     /* 静默失败：内存里仍可正常使用 */
+  }
+}
+
+export function loadBody(): BodyEntry[] {
+  try {
+    const raw = localStorage.getItem(BODY_KEY)
+    return raw ? (JSON.parse(raw) as BodyEntry[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveBody(entries: BodyEntry[]): void {
+  try {
+    localStorage.setItem(BODY_KEY, JSON.stringify(entries))
+  } catch {
+    /* 静默失败 */
   }
 }
