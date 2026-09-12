@@ -7,6 +7,7 @@ import { BodyTab } from './tabs/BodyTab'
 import { StatsTab } from './tabs/StatsTab'
 import { HistoryTab } from './tabs/HistoryTab'
 import { loadBody, loadMeals, loadWorkouts, saveBody, saveMeals, saveWorkouts } from './storage'
+import type { BackupData } from './storage'
 import { todayStr } from './lib/streak'
 import type { BodyEntry, MealEntry, Workout } from './types'
 
@@ -58,6 +59,12 @@ export default function App() {
   function deleteBody(id: string) {
     setBody((prev) => prev.filter((e) => e.id !== id))
   }
+  // 备份恢复：整体替换三类数据（useEffect 会立刻持久化）
+  function importBackup(data: BackupData) {
+    setWorkouts(data.workouts)
+    setBody(data.body)
+    setMeals(data.meals)
+  }
 
   return (
     <PhoneFrame>
@@ -81,7 +88,9 @@ export default function App() {
           {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
           {tab === 'stats' && <StatsTab workouts={workouts} />}
-          {tab === 'history' && <HistoryTab workouts={workouts} onDelete={deleteWorkout} onBack={() => setTab('today')} />}
+          {tab === 'history' && (
+            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onBack={() => setTab('today')} onImport={importBackup} />
+          )}
         </main>
 
         <nav className="flex border-t border-line bg-paper">
