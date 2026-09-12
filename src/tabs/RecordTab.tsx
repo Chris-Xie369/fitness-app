@@ -92,7 +92,7 @@ export function RecordTab({
         if (s.weight && !Number.isNaN(w) && w > 0) set.weight = w
         sets.push(set)
       }
-      if (sets.length > 0) valid.push({ name, sets })
+      if (sets.length > 0) valid.push({ id: uid(), name, sets })
     }
     if (valid.length === 0) return
 

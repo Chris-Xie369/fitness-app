@@ -5,6 +5,7 @@ export type SetEntry = {
 }
 
 export type Exercise = {
+  id?: string
   name: string
   sets: SetEntry[]
 }

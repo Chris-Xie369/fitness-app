@@ -34,3 +34,31 @@ export function weeklyKcal(meals: MealEntry[], n = 7): DayKcal[] {
   }
   return buckets
 }
+
+// ===== 统计用聚合 =====
+
+// 最近 n 天每日热量（升序），含 0 值（画趋势用）
+export function kcalTrend(meals: MealEntry[], n = 30): DayKcal[] {
+  return weeklyKcal(meals, n)
+}
+
+// 近 n 天里，训练日 vs 休息日的平均摄入（只统计有饮食记录的日子）
+export function avgKcalByTraining(
+  meals: MealEntry[],
+  workoutDates: Set<string>,
+  n = 30,
+): { trainAvg: number; restAvg: number; trainDays: number; restDays: number } {
+  const trend = kcalTrend(meals, n)
+  let trainSum = 0, trainN = 0, restSum = 0, restN = 0
+  for (const d of trend) {
+    if (d.kcal <= 0) continue
+    if (workoutDates.has(d.date)) { trainSum += d.kcal; trainN++ }
+    else { restSum += d.kcal; restN++ }
+  }
+  return {
+    trainAvg: trainN ? Math.round(trainSum / trainN) : 0,
+    restAvg: restN ? Math.round(restSum / restN) : 0,
+    trainDays: trainN,
+    restDays: restN,
+  }
+}

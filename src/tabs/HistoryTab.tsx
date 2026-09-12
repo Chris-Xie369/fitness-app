@@ -19,22 +19,30 @@ function todayStamp(): string {
 export function HistoryTab({
   workouts,
   onDelete,
+  onRemoveExercise,
   onBack,
   onImport,
   lastAdded,
 }: {
   workouts: Workout[]
   onDelete: (id: string) => void
+  onRemoveExercise: (workoutId: string, exerciseId: string) => void
   onBack: () => void
   onImport: (data: BackupData) => void
   lastAdded: { at: number; appended: boolean; count: number; date: string } | null
 }) {
-  // 二次确认：一天的卡片现在包含当天全部动作，误删损失大。第一次点只进入确认态，4 秒不操作自动复位
+  // 二次确认：一天的卡片包含当天全部动作，误删整天损失大。第一次点只进入确认态，4 秒自动复位
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [pending, setPending] = useState<BackupData | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [flashDate, setFlashDate] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!confirmId) return
+    const t = setTimeout(() => setConfirmId(null), 4000)
+    return () => clearTimeout(t)
+  }, [confirmId])
 
   // 补记保存后落到历史页：提示 + 定位到那天的卡片并短暂高亮
   useEffect(() => {
@@ -50,13 +58,6 @@ export function HistoryTab({
     const t2 = setTimeout(() => setMsg(null), 3200)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [lastAdded])
-
-  // 删除确认态 4 秒不操作自动复位
-  useEffect(() => {
-    if (!confirmId) return
-    const t = setTimeout(() => setConfirmId(null), 4000)
-    return () => clearTimeout(t)
-  }, [confirmId])
 
   async function doExport() {
     const fileName = `fitness-backup-${todayStamp()}.json`
@@ -115,29 +116,42 @@ export function HistoryTab({
       ) : (
         <ul className="mt-5 space-y-4">
           {workouts.map((w) => (
-            <li key={w.id} data-date={w.date} className={`rounded-2xl border p-4 transition-colors duration-500 ${flashDate === w.date ? "bg-clay/10 border-clay" : "bg-surface border-line"}`}>
+            <li
+              key={w.id}
+              data-date={w.date}
+              className={`rounded-2xl border p-4 transition-colors duration-500 ${flashDate === w.date ? 'bg-clay/10 border-clay' : 'bg-surface border-line'}`}
+            >
               <div className="flex items-start justify-between">
-              <div>
-                <p className="font-display text-[15px] text-ink">{formatDate(w.date)}</p>
-                <p className="text-[12px] text-muted mt-0.5">
-                  {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组
-                </p>
-              </div>
-              {confirmId === w.id ? (
-                <span className="flex items-center gap-2 text-[12px] whitespace-nowrap">
-                  <button onClick={() => onDelete(w.id)} className="text-clay">确认删除？</button>
-                  <button onClick={() => setConfirmId(null)} className="text-muted/60">取消</button>
-                </span>
-              ) : (
-                <button onClick={() => setConfirmId(w.id)} className="text-muted/50 hover:text-clay text-sm">删除</button>
-              )}
+                <div>
+                  <p className="font-display text-[15px] text-ink">{formatDate(w.date)}</p>
+                  <p className="text-[12px] text-muted mt-0.5">
+                    {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组
+                  </p>
+                </div>
+                {confirmId === w.id ? (
+                  <span className="flex items-center gap-2 text-[12px] whitespace-nowrap">
+                    <button onClick={() => onDelete(w.id)} className="text-clay">确认删除整天？</button>
+                    <button onClick={() => setConfirmId(null)} className="text-muted/60">取消</button>
+                  </span>
+                ) : (
+                  <button onClick={() => setConfirmId(w.id)} className="-m-2 p-2 text-muted/50 hover:text-clay text-sm">删除整天</button>
+                )}
               </div>
               <div className="mt-2 h-px bg-line" />
               <ul className="mt-2 space-y-1">
-                {w.exercises.map((ex, i) => (
-                  <li key={i} className="text-[14px] text-ink">
-                    {ex.name}
-                    <span className="text-muted"> — {ex.sets.map((s) => (s.weight ? `${s.reps}×${s.weight}kg` : `${s.reps}次`)).join('、')}</span>
+                {w.exercises.map((ex) => (
+                  <li key={ex.id ?? ex.name} className="group flex items-center justify-between gap-2 text-[14px] text-ink">
+                    <span>
+                      {ex.name}
+                      <span className="text-muted"> — {ex.sets.map((s) => (s.weight ? `${s.reps}×${s.weight}kg` : `${s.reps}次`)).join('、')}</span>
+                    </span>
+                    <button
+                      onClick={() => ex.id && onRemoveExercise(w.id, ex.id)}
+                      aria-label={`删除 ${ex.name}`}
+                      className="-m-2.5 p-2.5 shrink-0 leading-none text-muted/40 hover:text-clay text-sm"
+                    >
+                      ✕
+                    </button>
                   </li>
                 ))}
               </ul>

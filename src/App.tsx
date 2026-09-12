@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PhoneFrame } from './components/PhoneFrame'
 import { TodayTab } from './tabs/TodayTab'
 import { RecordTab } from './tabs/RecordTab'
@@ -20,6 +20,10 @@ export default function App() {
   const [body, setBody] = useState<BodyEntry[]>(() => loadBody())
   const [tab, setTab] = useState<Tab>('today')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
+  const mainRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 })
+  }, [tab])
 
   // 状态一变就自动存（刷新不丢）
   useEffect(() => saveWorkouts(workouts), [workouts])
@@ -42,6 +46,14 @@ export default function App() {
   }
   function deleteWorkout(id: string) {
     setWorkouts((prev) => prev.filter((w) => w.id !== id))
+  }
+  // 只删一天里的某个动作（按稳定 id，双击不会误删相邻动作）；最后一个动作删掉时整天记录一起消失
+  function removeExercise(workoutId: string, exerciseId: string) {
+    setWorkouts((prev) =>
+      prev
+        .map((w) => (w.id === workoutId ? { ...w, exercises: w.exercises.filter((ex) => ex.id !== exerciseId) } : w))
+        .filter((w) => w.exercises.length > 0),
+    )
   }
 
   function addMeal(m: MealEntry) {
@@ -70,7 +82,7 @@ export default function App() {
   return (
     <PhoneFrame>
       <div className="flex h-full flex-col">
-        <main className="flex-1 overflow-y-auto">
+        <main ref={mainRef} className="flex-1 overflow-y-auto">
           {tab === 'today' && (
             <TodayTab
               workouts={workouts}
@@ -84,8 +96,10 @@ export default function App() {
           )}
           {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
-          {tab === 'stats' && <StatsTab workouts={workouts} />}
-          <HistoryTab workouts={workouts} onDelete={deleteWorkout} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} />
+          {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} />}
+          {tab === 'history' && (
+            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} />
+          )}
         </main>
 
         <nav className="flex border-t border-line bg-paper">

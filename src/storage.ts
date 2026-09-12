@@ -4,6 +4,9 @@ const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
 const MEALS_KEY = 'fitness-app:meals'
 
+const newId = (): string =>
+  globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
 // 旧版本里"再记一次"会在同一天产生多条 workout，今天页只能看到第一条。
 // 归一化：同日期的记录合并成一条，动作按保存先后拼接，保留最早的 id/创建时间。
 export function normalizeWorkouts(workouts: Workout[]): Workout[] {
@@ -22,7 +25,9 @@ export function normalizeWorkouts(workouts: Workout[]): Workout[] {
       id: first.id,
       date: first.date,
       createdAt: first.createdAt,
-      exercises: ordered.flatMap((w) => w.exercises),
+      exercises: ordered.flatMap((w) => w.exercises).map((ex) =>
+        ex.id ? ex : { ...ex, id: newId() },
+      ),
       note: ordered.map((w) => w.note).find(Boolean),
     })
   }
