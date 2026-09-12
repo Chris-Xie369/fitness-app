@@ -3,12 +3,13 @@ import { PhoneFrame } from './components/PhoneFrame'
 import { TodayTab } from './tabs/TodayTab'
 import { RecordTab } from './tabs/RecordTab'
 import { BodyTab } from './tabs/BodyTab'
+import { StatsTab } from './tabs/StatsTab'
 import { HistoryTab } from './tabs/HistoryTab'
 import { loadBody, loadWorkouts, saveBody, saveWorkouts } from './storage'
 import { todayStr } from './lib/streak'
 import type { BodyEntry, Workout } from './types'
 
-type Tab = 'today' | 'record' | 'body' | 'history'
+type Tab = 'today' | 'record' | 'body' | 'stats' | 'history'
 type LastAdded = { at: number; appended: boolean; count: number }
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
             <RecordTab onSave={addWorkout} alreadyToday={workouts.some((w) => w.date === todayStr())} />
           )}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
+          {tab === 'stats' && <StatsTab workouts={workouts} />}
           {tab === 'history' && <HistoryTab workouts={workouts} onDelete={deleteWorkout} />}
         </main>
 
@@ -66,6 +68,7 @@ export default function App() {
           <TabButton active={tab === 'today'} onClick={() => setTab('today')} label="今天" icon="🏠" />
           <TabButton active={tab === 'record'} onClick={() => setTab('record')} label="记录" icon="✍️" />
           <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon="⚖️" />
+          <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon="📊" />
           <TabButton active={tab === 'history'} onClick={() => setTab('history')} label="历史" icon="📅" />
         </nav>
       </div>
