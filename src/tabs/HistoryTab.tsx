@@ -9,7 +9,7 @@ function formatDate(dateStr: string): string {
   return `${m} 月 ${d} 日 · 周${WEEKDAYS[dt.getDay()]}`
 }
 
-export function HistoryTab({ workouts, onDelete }: { workouts: Workout[]; onDelete: (id: string) => void }) {
+export function HistoryTab({ workouts, onDelete, onBack }: { workouts: Workout[]; onDelete: (id: string) => void; onBack: () => void }) {
   // 二次确认：一天的卡片现在包含当天全部动作，误删损失大。第一次点只进入确认态，4 秒不操作自动复位
   const [confirmId, setConfirmId] = useState<string | null>(null)
   useEffect(() => {
@@ -19,7 +19,8 @@ export function HistoryTab({ workouts, onDelete }: { workouts: Workout[]; onDele
   }, [confirmId])
 
   return (
-    <div className="px-7 pt-16 pb-10">
+    <div className="relative px-7 pt-16 pb-10">
+      <button onClick={onBack} className="absolute left-6 top-[54px] text-[15px] text-muted hover:text-clay transition">‹ 返回</button>
       <h1 className="font-display text-[28px] text-ink text-center">历史</h1>
 
       {workouts.length === 0 ? (

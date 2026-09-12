@@ -64,7 +64,12 @@ export default function App() {
       <div className="flex h-full flex-col">
         <main className="flex-1 overflow-y-auto">
           {tab === 'today' && (
-            <TodayTab workouts={workouts} lastAdded={lastAdded} onGoRecord={() => setTab('record')} />
+            <TodayTab
+              workouts={workouts}
+              lastAdded={lastAdded}
+              onGoRecord={() => setTab('record')}
+              onGoHistory={() => setTab('history')}
+            />
           )}
           {tab === 'record' && (
             <RecordTab onSave={addWorkout} alreadyToday={workouts.some((w) => w.date === todayStr())} />
@@ -72,7 +77,7 @@ export default function App() {
           {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
           {tab === 'stats' && <StatsTab workouts={workouts} />}
-          {tab === 'history' && <HistoryTab workouts={workouts} onDelete={deleteWorkout} />}
+          {tab === 'history' && <HistoryTab workouts={workouts} onDelete={deleteWorkout} onBack={() => setTab('today')} />}
         </main>
 
         <nav className="flex border-t border-line bg-paper">
@@ -81,7 +86,6 @@ export default function App() {
           <TabButton active={tab === 'diet'} onClick={() => setTab('diet')} label="饮食" icon="🍚" />
           <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon="⚖️" />
           <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon="📊" />
-          <TabButton active={tab === 'history'} onClick={() => setTab('history')} label="历史" icon="📅" />
         </nav>
       </div>
     </PhoneFrame>

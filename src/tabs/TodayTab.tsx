@@ -10,10 +10,12 @@ export function TodayTab({
   workouts,
   lastAdded,
   onGoRecord,
+  onGoHistory,
 }: {
   workouts: Workout[]
   lastAdded: LastAdded | null
   onGoRecord: () => void
+  onGoHistory: () => void
 }) {
   const today = todayStr()
   const todayWorkout = workouts.find((w) => w.date === today)
@@ -82,6 +84,13 @@ export function TodayTab({
         className="mt-6 w-full py-3 rounded-xl bg-clay text-white font-medium hover:bg-clay/90 active:scale-[0.98] transition"
       >
         {todayWorkout ? '再记一次' : '记录今天的训练'}
+      </button>
+
+      <button
+        onClick={onGoHistory}
+        className="mt-3 w-full py-3 rounded-xl border border-line text-[14px] text-muted hover:text-clay hover:border-clay/40 transition"
+      >
+        📅 查看全部历史 ›
       </button>
     </div>
   )
