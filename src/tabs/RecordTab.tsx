@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Exercise, SetEntry, Workout } from '../types'
 import { todayStr } from '../lib/streak'
+import { dayLabel, shiftDate } from '../lib/date'
 import { formatSets, lastSetsFor, recentExerciseNames } from '../lib/exercises'
 
 // 表单里的"一组"用字符串（input 的 value 一律是字符串），保存时再转成数字
@@ -20,18 +21,34 @@ function toDraftSets(sets: SetEntry[]): DraftSet[] {
 
 export function RecordTab({
   onSave,
-  alreadyToday,
   workouts,
 }: {
   onSave: (w: Workout) => void
-  alreadyToday: boolean
   workouts: Workout[]
 }) {
+  const today = todayStr()
+  const [date, setDate] = useState(today)
+  const isToday = date === today
+  const alreadyOnDate = workouts.some((w) => w.date === date)
   const [exercises, setExercises] = useState<DraftExercise[]>([emptyExercise()])
 
   // 最近练过的动作：前 6 个做快捷胶囊，全部用于输入框自动补全
   const recent = recentExerciseNames(workouts, 6)
   const allNames = recentExerciseNames(workouts)
+
+  // 切换日期同时清空表单：防止填了一半的动作保存到错误日期
+  function goTo(next: string) {
+    setDate(next)
+    setExercises([emptyExercise()])
+  }
+  // 函数式更新：快速连点 ‹ › 不会因闭包陈旧而丢步
+  function stepDate(delta: number) {
+    setDate((prev) => {
+      const next = shiftDate(prev, delta)
+      return delta > 0 && next > today ? prev : next
+    })
+    setExercises([emptyExercise()])
+  }
 
   function addExercise() {
     setExercises((p) => [...p, emptyExercise()])
@@ -79,14 +96,56 @@ export function RecordTab({
     }
     if (valid.length === 0) return
 
-    onSave({ id: uid(), date: todayStr(), exercises: valid, createdAt: Date.now() })
+    onSave({ id: uid(), date, exercises: valid, createdAt: Date.now() })
     setExercises([emptyExercise()]) // 重置表单
   }
+
+  const shortLabel = dayLabel(date).replace(/^(今天|昨天) · /, '')
+  const subtitle = isToday
+    ? alreadyOnDate
+      ? '动作将追加到今天的训练'
+      : '保存后即完成今天打卡'
+    : alreadyOnDate
+      ? `动作将追加到 ${shortLabel} 的训练`
+      : `补记到 ${shortLabel}`
+
+  const saveLabel = isToday
+    ? alreadyOnDate
+      ? '追加到今天的训练'
+      : '保存并打卡'
+    : alreadyOnDate
+      ? '追加到这天的训练'
+      : '保存补记'
 
   return (
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">记录训练</h1>
-      <p className="text-[13px] text-muted mt-1">{alreadyToday ? '动作将追加到今天的训练' : '保存后即完成今天打卡'}</p>
+
+      {/* 日期切换：补记过去任意一天（未来日不可选） */}
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <button
+          onClick={() => stepDate(-1)}
+          className="h-8 w-8 rounded-full border border-line text-muted hover:text-clay hover:border-clay/40 transition"
+          aria-label="前一天"
+        >
+          ‹
+        </button>
+        <p className="min-w-[150px] text-center text-[14px] text-ink">{dayLabel(date)}</p>
+        <button
+          onClick={() => stepDate(1)}
+          disabled={isToday}
+          className="h-8 w-8 rounded-full border border-line text-muted transition enabled:hover:text-clay enabled:hover:border-clay/40 disabled:opacity-30"
+          aria-label="后一天"
+        >
+          ›
+        </button>
+      </div>
+      {!isToday && (
+        <div className="mt-2 text-center">
+          <button onClick={() => goTo(today)} className="-my-2 py-2 px-3 text-[12px] text-clay hover:underline">回到今天</button>
+        </div>
+      )}
+      <p className="text-[13px] text-muted mt-2 text-center">{subtitle}</p>
 
       <datalist id="exercise-names">
         {allNames.map((n) => (
@@ -94,11 +153,9 @@ export function RecordTab({
         ))}
       </datalist>
 
-      <div className="mt-6 space-y-5">
+      <div className="mt-5 space-y-5">
         {exercises.map((ex, exIdx) => {
           const last = ex.name.trim() ? lastSetsFor(workouts, ex.name) : []
-          // 只有组数据全空时才给「带入」：避免误触覆盖用户已手填的内容
-          const setsEmpty = ex.sets.every((s) => !s.reps.trim() && !s.weight.trim())
           return (
             <div key={ex.id} className="rounded-2xl bg-surface border border-line p-4">
               <div className="flex items-center gap-2">
@@ -133,7 +190,7 @@ export function RecordTab({
               {last.length > 0 && (
                 <div className="mt-2 flex items-center justify-between text-[12px]">
                   <span className="text-muted">上次：{formatSets(last)}</span>
-                  {setsEmpty && (
+                  {ex.sets.every((s) => !s.reps.trim() && !s.weight.trim()) && (
                     <button onClick={() => applyHistory(ex.id, ex.name.trim())} className="text-clay hover:underline">带入 ↑</button>
                   )}
                 </div>
@@ -176,7 +233,7 @@ export function RecordTab({
         onClick={handleSave}
         className="mt-6 w-full py-3 rounded-xl bg-clay text-white font-medium hover:bg-clay/90 active:scale-[0.98] transition"
       >
-        {alreadyToday ? '追加到今天的训练' : '保存并打卡'}
+        {saveLabel}
       </button>
     </div>
   )

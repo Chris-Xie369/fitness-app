@@ -34,23 +34,3 @@ export function weeklyKcal(meals: MealEntry[], n = 7): DayKcal[] {
   }
   return buckets
 }
-
-// 日期标签：今天/昨天显示相对说法，其余「M月D日 周X」
-export function dayLabel(date: string): string {
-  const [y, m, d] = date.split('-').map(Number)
-  const dt = new Date(y, m - 1, d)
-  const base = `${m}月${d}日 周${WEEKDAYS[dt.getDay()]}`
-  const today = new Date()
-  const key = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
-  if (date === key(today)) return `今天 · ${base}`
-  const yest = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
-  if (date === key(yest)) return `昨天 · ${base}`
-  return base
-}
-
-// 前后推 n 天，返回 'YYYY-MM-DD'
-export function shiftDate(date: string, deltaDays: number): string {
-  const [y, m, d] = date.split('-').map(Number)
-  const dt = new Date(y, m - 1, d + deltaDays)
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-}

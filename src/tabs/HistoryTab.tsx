@@ -21,17 +21,35 @@ export function HistoryTab({
   onDelete,
   onBack,
   onImport,
+  lastAdded,
 }: {
   workouts: Workout[]
   onDelete: (id: string) => void
   onBack: () => void
   onImport: (data: BackupData) => void
+  lastAdded: { at: number; appended: boolean; count: number; date: string } | null
 }) {
   // 二次确认：一天的卡片现在包含当天全部动作，误删损失大。第一次点只进入确认态，4 秒不操作自动复位
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [pending, setPending] = useState<BackupData | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
+  const [flashDate, setFlashDate] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // 补记保存后落到历史页：提示 + 定位到那天的卡片并短暂高亮
+  useEffect(() => {
+    if (!lastAdded) return
+    const [, m, d] = lastAdded.date.split('-').map(Number)
+    setMsg(`已${lastAdded.appended ? '追加' : '补记'}到 ${m}月${d}日：${lastAdded.count} 个动作`)
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`li[data-date="${lastAdded.date}"]`)
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+    setFlashDate(lastAdded.date)
+    const t1 = setTimeout(() => setFlashDate(null), 2600)
+    const t2 = setTimeout(() => setMsg(null), 3200)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [lastAdded])
 
   // 删除确认态 4 秒不操作自动复位
   useEffect(() => {
@@ -97,7 +115,7 @@ export function HistoryTab({
       ) : (
         <ul className="mt-5 space-y-4">
           {workouts.map((w) => (
-            <li key={w.id} className="rounded-2xl bg-surface border border-line p-4">
+            <li key={w.id} data-date={w.date} className={`rounded-2xl border p-4 transition-colors duration-500 ${flashDate === w.date ? "bg-clay/10 border-clay" : "bg-surface border-line"}`}>
               <div className="flex items-start justify-between">
               <div>
                 <p className="font-display text-[15px] text-ink">{formatDate(w.date)}</p>

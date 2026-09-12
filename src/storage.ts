@@ -26,8 +26,8 @@ export function normalizeWorkouts(workouts: Workout[]): Workout[] {
       note: ordered.map((w) => w.note).find(Boolean),
     })
   }
-  // 最新的一天排最前（历史页顺序 & addWorkout 的 find 都依赖这个顺序）
-  return merged.sort((a, b) => b.createdAt - a.createdAt)
+  // 最新的一天排最前（按日期而非录入时间：补记过去日时 createdAt 是"现在"，日期才是真实顺序）
+  return merged.sort((a, b) => b.date.localeCompare(a.date))
 }
 
 export function loadWorkouts(): Workout[] {

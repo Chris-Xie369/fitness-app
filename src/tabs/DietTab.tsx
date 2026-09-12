@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import type { MealEntry, MealType } from '../types'
-import { dayKcal, dayLabel, MEAL_TYPES, shiftDate, weeklyKcal } from '../lib/diet'
+import { dayKcal, MEAL_TYPES, weeklyKcal } from '../lib/diet'
+import { dayLabel, shiftDate } from '../lib/date'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
 
@@ -50,6 +51,14 @@ export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd:
     setDate(next)
     setDrafts(emptyDraft)
   }
+  // 函数式更新：快速连点不丢步
+  function stepDate(delta: number) {
+    setDate((prev) => {
+      const next = shiftDate(prev, delta)
+      return delta > 0 && next > today ? prev : next
+    })
+    setDrafts(emptyDraft)
+  }
 
   function setDraft(meal: MealType, field: keyof Draft, value: string) {
     setDrafts((p) => ({ ...p, [meal]: { ...p[meal], [field]: value } }))
@@ -86,7 +95,7 @@ export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd:
       {/* 日期切换：补记/修改过去任意一天 */}
       <div className="mt-3 flex items-center justify-center gap-3">
         <button
-          onClick={() => goTo(shiftDate(date, -1))}
+          onClick={() => stepDate(-1)}
           className="h-8 w-8 rounded-full border border-line text-muted hover:text-clay hover:border-clay/40 transition"
           aria-label="前一天"
         >
@@ -94,7 +103,7 @@ export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd:
         </button>
         <p className="min-w-[150px] text-center text-[14px] text-ink">{dayLabel(date)}</p>
         <button
-          onClick={() => !isToday && goTo(shiftDate(date, 1))}
+          onClick={() => stepDate(1)}
           disabled={isToday}
           className="h-8 w-8 rounded-full border border-line text-muted transition enabled:hover:text-clay enabled:hover:border-clay/40 disabled:opacity-30"
           aria-label="后一天"

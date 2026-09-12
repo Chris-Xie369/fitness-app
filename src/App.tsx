@@ -12,7 +12,7 @@ import { todayStr } from './lib/streak'
 import type { BodyEntry, MealEntry, Workout } from './types'
 
 type Tab = 'today' | 'record' | 'diet' | 'body' | 'stats' | 'history'
-type LastAdded = { at: number; appended: boolean; count: number }
+type LastAdded = { at: number; appended: boolean; count: number; date: string }
 
 export default function App() {
   const [workouts, setWorkouts] = useState<Workout[]>(() => loadWorkouts())
@@ -31,13 +31,14 @@ export default function App() {
     const appended = workouts.some((x) => x.date === w.date)
     setWorkouts((prev) => {
       const existing = prev.find((x) => x.date === w.date)
-      if (!existing) return [w, ...prev]
+      if (!existing) return [w, ...prev].sort((x, y) => y.date.localeCompare(x.date))
       return prev.map((x) =>
         x.id === existing.id ? { ...x, exercises: [...x.exercises, ...w.exercises] } : x,
       )
     })
-    setLastAdded({ at: w.createdAt, appended, count: w.exercises.length })
-    setTab('today') // 保存后跳回今天页
+    setLastAdded({ at: w.createdAt, appended, count: w.exercises.length, date: w.date })
+    // 记今天跳今天页；补记过去日跳历史页（今天页看不到那条）
+    setTab(w.date === todayStr() ? 'today' : 'history')
   }
   function deleteWorkout(id: string) {
     setWorkouts((prev) => prev.filter((w) => w.id !== id))
@@ -79,18 +80,12 @@ export default function App() {
             />
           )}
           {tab === 'record' && (
-            <RecordTab
-              onSave={addWorkout}
-              alreadyToday={workouts.some((w) => w.date === todayStr())}
-              workouts={workouts}
-            />
+            <RecordTab onSave={addWorkout} workouts={workouts} />
           )}
           {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
           {tab === 'stats' && <StatsTab workouts={workouts} />}
-          {tab === 'history' && (
-            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onBack={() => setTab('today')} onImport={importBackup} />
-          )}
+          <HistoryTab workouts={workouts} onDelete={deleteWorkout} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} />
         </main>
 
         <nav className="flex border-t border-line bg-paper">
