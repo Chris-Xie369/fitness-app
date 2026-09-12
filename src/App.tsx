@@ -5,21 +5,33 @@ import { RecordTab } from './tabs/RecordTab'
 import { BodyTab } from './tabs/BodyTab'
 import { HistoryTab } from './tabs/HistoryTab'
 import { loadBody, loadWorkouts, saveBody, saveWorkouts } from './storage'
+import { todayStr } from './lib/streak'
 import type { BodyEntry, Workout } from './types'
 
 type Tab = 'today' | 'record' | 'body' | 'history'
+type LastAdded = { at: number; appended: boolean; count: number }
 
 export default function App() {
   const [workouts, setWorkouts] = useState<Workout[]>(() => loadWorkouts())
   const [body, setBody] = useState<BodyEntry[]>(() => loadBody())
   const [tab, setTab] = useState<Tab>('today')
+  const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
 
   // workouts / body 一变就自动存（刷新不丢）
   useEffect(() => saveWorkouts(workouts), [workouts])
   useEffect(() => saveBody(body), [body])
 
+  // 同一天再记：动作追加进当天的 workout（与体重"同日更新"语义一致），而不是新建一条
   function addWorkout(w: Workout) {
-    setWorkouts((prev) => [w, ...prev])
+    const appended = workouts.some((x) => x.date === w.date)
+    setWorkouts((prev) => {
+      const existing = prev.find((x) => x.date === w.date)
+      if (!existing) return [w, ...prev]
+      return prev.map((x) =>
+        x.id === existing.id ? { ...x, exercises: [...x.exercises, ...w.exercises] } : x,
+      )
+    })
+    setLastAdded({ at: w.createdAt, appended, count: w.exercises.length })
     setTab('today') // 保存后跳回今天页
   }
   function deleteWorkout(id: string) {
@@ -40,8 +52,12 @@ export default function App() {
     <PhoneFrame>
       <div className="flex h-full flex-col">
         <main className="flex-1 overflow-y-auto">
-          {tab === 'today' && <TodayTab workouts={workouts} onGoRecord={() => setTab('record')} />}
-          {tab === 'record' && <RecordTab onSave={addWorkout} />}
+          {tab === 'today' && (
+            <TodayTab workouts={workouts} lastAdded={lastAdded} onGoRecord={() => setTab('record')} />
+          )}
+          {tab === 'record' && (
+            <RecordTab onSave={addWorkout} alreadyToday={workouts.some((w) => w.date === todayStr())} />
+          )}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
           {tab === 'history' && <HistoryTab workouts={workouts} onDelete={deleteWorkout} />}
         </main>

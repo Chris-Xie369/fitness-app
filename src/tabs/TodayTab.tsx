@@ -1,9 +1,20 @@
+import { useEffect, useState } from 'react'
 import type { Workout } from '../types'
 import { computeStreak, todayStr, weekStatus } from '../lib/streak'
 
 const WEEKDAYS = '日一二三四五六'
 
-export function TodayTab({ workouts, onGoRecord }: { workouts: Workout[]; onGoRecord: () => void }) {
+type LastAdded = { at: number; appended: boolean; count: number }
+
+export function TodayTab({
+  workouts,
+  lastAdded,
+  onGoRecord,
+}: {
+  workouts: Workout[]
+  lastAdded: LastAdded | null
+  onGoRecord: () => void
+}) {
   const today = todayStr()
   const todayWorkout = workouts.find((w) => w.date === today)
   const streak = computeStreak(workouts)
@@ -11,8 +22,24 @@ export function TodayTab({ workouts, onGoRecord }: { workouts: Workout[]; onGoRe
   const now = new Date()
   const dateLabel = `${now.getMonth() + 1} 月 ${now.getDate()} 日 · 周${WEEKDAYS[now.getDay()]}`
 
+  // 刚保存完：提示成功，并把新动作（列表最后一条）滚动到可见位置
+  const [toast, setToast] = useState<string | null>(null)
+  useEffect(() => {
+    if (!lastAdded) return
+    setToast(lastAdded.appended ? `已追加 ${lastAdded.count} 个动作到今天的训练` : '打卡成功，开练！')
+    document.querySelector('main ul li:last-child')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const t = setTimeout(() => setToast(null), 2600)
+    return () => clearTimeout(t)
+  }, [lastAdded])
+
   return (
     <div className="px-7 pt-16 pb-10">
+      {toast && (
+        <div className="sticky top-3 z-30 flex justify-center pointer-events-none">
+          <span className="rounded-full bg-ink/90 text-paper text-[13px] px-4 py-1.5 shadow-lg">{toast}</span>
+        </div>
+      )}
+
       <p className="font-display text-[13px] italic text-muted text-center">{dateLabel}</p>
       <h1 className="font-display text-[28px] leading-none mt-1 text-ink text-center">健身打卡</h1>
 

@@ -12,7 +12,7 @@ function emptyExercise(): DraftExercise {
   return { id: uid(), name: '', sets: [{ reps: '', weight: '' }] }
 }
 
-export function RecordTab({ onSave }: { onSave: (w: Workout) => void }) {
+export function RecordTab({ onSave, alreadyToday }: { onSave: (w: Workout) => void; alreadyToday: boolean }) {
   const [exercises, setExercises] = useState<DraftExercise[]>([emptyExercise()])
 
   function addExercise() {
@@ -61,7 +61,7 @@ export function RecordTab({ onSave }: { onSave: (w: Workout) => void }) {
   return (
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">记录训练</h1>
-      <p className="text-[13px] text-muted mt-1">保存后即完成今天打卡</p>
+      <p className="text-[13px] text-muted mt-1">{alreadyToday ? '动作将追加到今天的训练' : '保存后即完成今天打卡'}</p>
 
       <div className="mt-6 space-y-5">
         {exercises.map((ex, exIdx) => (
@@ -114,7 +114,7 @@ export function RecordTab({ onSave }: { onSave: (w: Workout) => void }) {
         onClick={handleSave}
         className="mt-6 w-full py-3 rounded-xl bg-clay text-white font-medium hover:bg-clay/90 active:scale-[0.98] transition"
       >
-        保存并打卡
+        {alreadyToday ? '追加到今天的训练' : '保存并打卡'}
       </button>
     </div>
   )

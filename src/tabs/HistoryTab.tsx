@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Workout } from '../types'
 
 const WEEKDAYS = '日一二三四五六'
@@ -9,6 +10,14 @@ function formatDate(dateStr: string): string {
 }
 
 export function HistoryTab({ workouts, onDelete }: { workouts: Workout[]; onDelete: (id: string) => void }) {
+  // 二次确认：一天的卡片现在包含当天全部动作，误删损失大。第一次点只进入确认态，4 秒不操作自动复位
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!confirmId) return
+    const t = setTimeout(() => setConfirmId(null), 4000)
+    return () => clearTimeout(t)
+  }, [confirmId])
+
   return (
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">历史</h1>
@@ -26,7 +35,14 @@ export function HistoryTab({ workouts, onDelete }: { workouts: Workout[]; onDele
                   {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组
                 </p>
               </div>
-              <button onClick={() => onDelete(w.id)} className="text-muted/50 hover:text-clay text-sm">删除</button>
+              {confirmId === w.id ? (
+                <span className="flex items-center gap-2 text-[12px] whitespace-nowrap">
+                  <button onClick={() => onDelete(w.id)} className="text-clay">确认删除？</button>
+                  <button onClick={() => setConfirmId(null)} className="text-muted/60">取消</button>
+                </span>
+              ) : (
+                <button onClick={() => setConfirmId(w.id)} className="text-muted/50 hover:text-clay text-sm">删除</button>
+              )}
               </div>
               <div className="mt-2 h-px bg-line" />
               <ul className="mt-2 space-y-1">
