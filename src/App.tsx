@@ -2,24 +2,27 @@ import { useEffect, useState } from 'react'
 import { PhoneFrame } from './components/PhoneFrame'
 import { TodayTab } from './tabs/TodayTab'
 import { RecordTab } from './tabs/RecordTab'
+import { DietTab } from './tabs/DietTab'
 import { BodyTab } from './tabs/BodyTab'
 import { StatsTab } from './tabs/StatsTab'
 import { HistoryTab } from './tabs/HistoryTab'
-import { loadBody, loadWorkouts, saveBody, saveWorkouts } from './storage'
+import { loadBody, loadMeals, loadWorkouts, saveBody, saveMeals, saveWorkouts } from './storage'
 import { todayStr } from './lib/streak'
-import type { BodyEntry, Workout } from './types'
+import type { BodyEntry, MealEntry, Workout } from './types'
 
-type Tab = 'today' | 'record' | 'body' | 'stats' | 'history'
+type Tab = 'today' | 'record' | 'diet' | 'body' | 'stats' | 'history'
 type LastAdded = { at: number; appended: boolean; count: number }
 
 export default function App() {
   const [workouts, setWorkouts] = useState<Workout[]>(() => loadWorkouts())
+  const [meals, setMeals] = useState<MealEntry[]>(() => loadMeals())
   const [body, setBody] = useState<BodyEntry[]>(() => loadBody())
   const [tab, setTab] = useState<Tab>('today')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
 
-  // workouts / body 一变就自动存（刷新不丢）
+  // 状态一变就自动存（刷新不丢）
   useEffect(() => saveWorkouts(workouts), [workouts])
+  useEffect(() => saveMeals(meals), [meals])
   useEffect(() => saveBody(body), [body])
 
   // 同一天再记：动作追加进当天的 workout（与体重"同日更新"语义一致），而不是新建一条
@@ -37,6 +40,13 @@ export default function App() {
   }
   function deleteWorkout(id: string) {
     setWorkouts((prev) => prev.filter((w) => w.id !== id))
+  }
+
+  function addMeal(m: MealEntry) {
+    setMeals((prev) => [m, ...prev])
+  }
+  function deleteMeal(id: string) {
+    setMeals((prev) => prev.filter((m) => m.id !== id))
   }
 
   // 体重：同一天再记 = 更新（按日期去重），并按日期升序排好（方便画趋势）
@@ -59,6 +69,7 @@ export default function App() {
           {tab === 'record' && (
             <RecordTab onSave={addWorkout} alreadyToday={workouts.some((w) => w.date === todayStr())} />
           )}
+          {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
           {tab === 'stats' && <StatsTab workouts={workouts} />}
           {tab === 'history' && <HistoryTab workouts={workouts} onDelete={deleteWorkout} />}
@@ -67,6 +78,7 @@ export default function App() {
         <nav className="flex border-t border-line bg-paper">
           <TabButton active={tab === 'today'} onClick={() => setTab('today')} label="今天" icon="🏠" />
           <TabButton active={tab === 'record'} onClick={() => setTab('record')} label="记录" icon="✍️" />
+          <TabButton active={tab === 'diet'} onClick={() => setTab('diet')} label="饮食" icon="🍚" />
           <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon="⚖️" />
           <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon="📊" />
           <TabButton active={tab === 'history'} onClick={() => setTab('history')} label="历史" icon="📅" />

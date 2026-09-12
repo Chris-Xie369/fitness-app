@@ -1,7 +1,8 @@
-import type { BodyEntry, Workout } from './types'
+import type { BodyEntry, MealEntry, Workout } from './types'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
+const MEALS_KEY = 'fitness-app:meals'
 
 // 旧版本里"再记一次"会在同一天产生多条 workout，今天页只能看到第一条。
 // 归一化：同日期的记录合并成一条，动作按保存先后拼接，保留最早的 id/创建时间。
@@ -49,7 +50,9 @@ export function saveWorkouts(workouts: Workout[]): void {
 export function loadBody(): BodyEntry[] {
   try {
     const raw = localStorage.getItem(BODY_KEY)
-    return raw ? (JSON.parse(raw) as BodyEntry[]) : []
+    if (!raw) return []
+    const data: unknown = JSON.parse(raw)
+    return Array.isArray(data) ? (data as BodyEntry[]) : []
   } catch {
     return []
   }
@@ -58,6 +61,42 @@ export function loadBody(): BodyEntry[] {
 export function saveBody(entries: BodyEntry[]): void {
   try {
     localStorage.setItem(BODY_KEY, JSON.stringify(entries))
+  } catch {
+    /* 静默失败 */
+  }
+}
+
+const MEAL_VALUES = ['breakfast', 'lunch', 'dinner', 'snack']
+
+// 结构校验：脏 JSON / 调试残留 / 未来 schema 变更都不能让饮食页崩
+function isValidMeal(m: unknown): m is MealEntry {
+  if (!m || typeof m !== 'object') return false
+  const x = m as Record<string, unknown>
+  return (
+    typeof x.id === 'string' &&
+    typeof x.date === 'string' &&
+    typeof x.name === 'string' &&
+    typeof x.kcal === 'number' &&
+    Number.isFinite(x.kcal) &&
+    typeof x.createdAt === 'number' &&
+    MEAL_VALUES.includes(x.meal as string)
+  )
+}
+
+export function loadMeals(): MealEntry[] {
+  try {
+    const raw = localStorage.getItem(MEALS_KEY)
+    if (!raw) return []
+    const data: unknown = JSON.parse(raw)
+    return Array.isArray(data) ? (data.filter(isValidMeal) as MealEntry[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveMeals(meals: MealEntry[]): void {
+  try {
+    localStorage.setItem(MEALS_KEY, JSON.stringify(meals))
   } catch {
     /* 静默失败 */
   }

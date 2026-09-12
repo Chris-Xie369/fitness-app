@@ -2,23 +2,12 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import type { Workout } from '../types'
 import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
 import { todayStr } from '../lib/streak'
+import { ZeroBar } from '../components/ZeroBar'
 
 // 从 CSS 变量读颜色，让图表跟着主题走（与 BodyTab 一致）
 function token(name: string, fallback: string): string {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
   return v || fallback
-}
-
-// 0 训练周不画空柱子（会像图表坏了），画一条 2px 底槽表示"这一周休息"
-function BarShape(props: {
-  x?: number; y?: number; width?: number; height?: number
-  payload?: { sets: number }; fill?: string; zeroFill?: string
-}) {
-  const { x = 0, y = 0, width = 0, height = 0, payload, fill, zeroFill } = props
-  if (!payload || payload.sets === 0) {
-    return <rect x={x} y={y - 2} width={width} height={2} rx={1} fill={zeroFill} />
-  }
-  return <rect x={x} y={y} width={width} height={height} rx={3} fill={fill} />
 }
 
 function WeekTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; days: number; sets: number } }> }) {
@@ -87,7 +76,7 @@ export function StatsTab({ workouts }: { workouts: Workout[] }) {
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: muted }} axisLine={{ stroke: line }} tickLine={false} interval={0} />
               <YAxis tick={{ fontSize: 10, fill: muted }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip cursor={{ fill: 'rgba(140,130,117,0.08)' }} content={<WeekTooltip />} />
-              <Bar dataKey="sets" maxBarSize={22} isAnimationActive={false} shape={<BarShape fill={clay} zeroFill={line} />} />
+              <Bar dataKey="sets" maxBarSize={22} isAnimationActive={false} shape={<ZeroBar fill={clay} zeroFill={line} />} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
