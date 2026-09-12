@@ -63,3 +63,9 @@ export function achievements(workouts: Workout[]): Achievement[] {
     mk('kinds5', '🧭', '动作探索', '尝试 5 种不同动作', kinds, 5, '种'),
   ]
 }
+
+// 一次保存前后对比：返回新解锁的成就（之前未达成、之后达成）
+export function newlyEarned(before: Workout[], after: Workout[]): Achievement[] {
+  const beforeIds = new Set(achievements(before).filter((a) => a.earned).map((a) => a.id))
+  return achievements(after).filter((a) => a.earned && !beforeIds.has(a.id))
+}

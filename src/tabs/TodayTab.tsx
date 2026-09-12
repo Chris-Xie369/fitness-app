@@ -11,9 +11,11 @@ export function TodayTab({
   lastAdded,
   onGoRecord,
   onGoHistory,
+  hasCelebration,
 }: {
   workouts: Workout[]
   lastAdded: LastAdded | null
+  hasCelebration: boolean
   onGoRecord: () => void
   onGoHistory: () => void
 }) {
@@ -27,13 +29,13 @@ export function TodayTab({
   // 刚保存完：提示成功，并把新动作（列表最后一条）滚动到可见位置
   const [toast, setToast] = useState<string | null>(null)
   useEffect(() => {
-    // 补记过去日的保存不在今天页反馈（历史页有自己的确认）
-    if (!lastAdded || lastAdded.date !== today) return
+    // 补记过去日的保存不在今天页反馈（历史页有自己的确认）；成就弹层开着时等它关闭再反馈
+    if (!lastAdded || lastAdded.date !== today || hasCelebration) return
     setToast(lastAdded.appended ? `已追加 ${lastAdded.count} 个动作到今天的训练` : '打卡成功，开练！')
     document.querySelector('main ul li:last-child')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     const t = setTimeout(() => setToast(null), 2600)
     return () => clearTimeout(t)
-  }, [lastAdded, today])
+  }, [lastAdded, today, hasCelebration])
 
   return (
     <div className="px-7 pt-16 pb-10">

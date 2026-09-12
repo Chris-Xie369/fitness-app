@@ -23,6 +23,7 @@ export function HistoryTab({
   onBack,
   onImport,
   lastAdded,
+  hasCelebration,
 }: {
   workouts: Workout[]
   onDelete: (id: string) => void
@@ -30,6 +31,7 @@ export function HistoryTab({
   onBack: () => void
   onImport: (data: BackupData) => void
   lastAdded: { at: number; appended: boolean; count: number; date: string } | null
+  hasCelebration: boolean
 }) {
   // 二次确认：一天的卡片包含当天全部动作，误删整天损失大。第一次点只进入确认态，4 秒自动复位
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -44,9 +46,9 @@ export function HistoryTab({
     return () => clearTimeout(t)
   }, [confirmId])
 
-  // 补记保存后落到历史页：提示 + 定位到那天的卡片并短暂高亮
+  // 补记保存后落到历史页：提示 + 定位到那天的卡片并短暂高亮；成就弹层开着时等它关闭
   useEffect(() => {
-    if (!lastAdded) return
+    if (!lastAdded || hasCelebration) return
     const [, m, d] = lastAdded.date.split('-').map(Number)
     setMsg(`已${lastAdded.appended ? '追加' : '补记'}到 ${m}月${d}日：${lastAdded.count} 个动作`)
     requestAnimationFrame(() => {
@@ -57,7 +59,7 @@ export function HistoryTab({
     const t1 = setTimeout(() => setFlashDate(null), 2600)
     const t2 = setTimeout(() => setMsg(null), 3200)
     return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [lastAdded])
+  }, [lastAdded, hasCelebration])
 
   async function doExport() {
     const fileName = `fitness-backup-${todayStamp()}.json`

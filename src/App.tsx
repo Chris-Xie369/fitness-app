@@ -6,6 +6,9 @@ import { DietTab } from './tabs/DietTab'
 import { BodyTab } from './tabs/BodyTab'
 import { StatsTab } from './tabs/StatsTab'
 import { HistoryTab } from './tabs/HistoryTab'
+import { Celebration } from './components/Celebration'
+import { newlyEarned } from './lib/achievements'
+import type { Achievement } from './lib/achievements'
 import { loadBody, loadMeals, loadWorkouts, saveBody, saveMeals, saveWorkouts } from './storage'
 import type { BackupData } from './storage'
 import { todayStr } from './lib/streak'
@@ -20,6 +23,7 @@ export default function App() {
   const [body, setBody] = useState<BodyEntry[]>(() => loadBody())
   const [tab, setTab] = useState<Tab>('today')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
+  const [achQueue, setAchQueue] = useState<Achievement[]>([])
   const mainRef = useRef<HTMLElement>(null)
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 })
@@ -33,13 +37,12 @@ export default function App() {
   // 同一天再记：动作追加进当天的 workout（与体重"同日更新"语义一致），而不是新建一条
   function addWorkout(w: Workout) {
     const appended = workouts.some((x) => x.date === w.date)
-    setWorkouts((prev) => {
-      const existing = prev.find((x) => x.date === w.date)
-      if (!existing) return [w, ...prev].sort((x, y) => y.date.localeCompare(x.date))
-      return prev.map((x) =>
-        x.id === existing.id ? { ...x, exercises: [...x.exercises, ...w.exercises] } : x,
-      )
-    })
+    const after = appended
+      ? workouts.map((x) => (x.date === w.date ? { ...x, exercises: [...x.exercises, ...w.exercises] } : x))
+      : [w, ...workouts].sort((x, y) => y.date.localeCompare(x.date))
+    const earned = newlyEarned(workouts, after)
+    setWorkouts(after)
+    if (earned.length > 0) setAchQueue((q) => [...q, ...earned])
     setLastAdded({ at: w.createdAt, appended, count: w.exercises.length, date: w.date })
     // 记今天跳今天页；补记过去日跳历史页（今天页看不到那条）
     setTab(w.date === todayStr() ? 'today' : 'history')
@@ -87,6 +90,7 @@ export default function App() {
             <TodayTab
               workouts={workouts}
               lastAdded={lastAdded}
+              hasCelebration={achQueue.length > 0}
               onGoRecord={() => setTab('record')}
               onGoHistory={() => setTab('history')}
             />
@@ -98,7 +102,7 @@ export default function App() {
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
           {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} />}
           {tab === 'history' && (
-            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} />
+            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
           )}
         </main>
 
@@ -109,6 +113,7 @@ export default function App() {
           <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon="⚖️" />
           <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon="📊" />
         </nav>
+      {achQueue.length > 0 && <Celebration queue={achQueue} onClose={() => setAchQueue([])} />}
       </div>
     </PhoneFrame>
   )
