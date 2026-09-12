@@ -36,3 +36,11 @@ export type MealEntry = {
   kcal: number
   createdAt: number
 }
+
+// 训练模板（如"推日""腿日"）
+export type Routine = {
+  id: string
+  name: string
+  createdAt: number
+  exercises: { name: string; sets: SetEntry[] }[]
+}

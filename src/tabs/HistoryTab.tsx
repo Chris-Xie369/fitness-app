@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Workout } from '../types'
 import type { BackupData } from '../storage'
-import { exportBackup, parseBackup } from '../storage'
+import { dismissBackupHint, exportBackup, loadBackupHintTimes, markExported, parseBackup } from '../storage'
+import { backupHintState } from '../lib/backup'
 
 const WEEKDAYS = '日一二三四五六'
 
@@ -20,6 +21,7 @@ export function HistoryTab({
   workouts,
   onDelete,
   onRemoveExercise,
+  onUpdateSets,
   onBack,
   onImport,
   lastAdded,
@@ -28,6 +30,7 @@ export function HistoryTab({
   workouts: Workout[]
   onDelete: (id: string) => void
   onRemoveExercise: (workoutId: string, exerciseId: string) => void
+  onUpdateSets: (workoutId: string, exerciseId: string, sets: { reps: number; weight?: number }[]) => void
   onBack: () => void
   onImport: (data: BackupData) => void
   lastAdded: { at: number; appended: boolean; count: number; date: string } | null
@@ -38,7 +41,12 @@ export function HistoryTab({
   const [pending, setPending] = useState<BackupData | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [flashDate, setFlashDate] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftSets, setDraftSets] = useState<{ reps: string; weight: string }[]>([])
+  const [editError, setEditError] = useState(false)
+  const [hintTimes, setHintTimes] = useState(loadBackupHintTimes)
   const fileRef = useRef<HTMLInputElement>(null)
+  const hint = backupHintState({ now: Date.now(), ...hintTimes, workoutCount: workouts.length })
 
   useEffect(() => {
     if (!confirmId) return
@@ -56,8 +64,9 @@ export function HistoryTab({
       card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
     setFlashDate(lastAdded.date)
+    const backfillMsg = `已${lastAdded.appended ? '追加' : '补记'}到 ${m}月${d}日：${lastAdded.count} 个动作`
     const t1 = setTimeout(() => setFlashDate(null), 2600)
-    const t2 = setTimeout(() => setMsg(null), 3200)
+    const t2 = setTimeout(() => setMsg((cur) => (cur === backfillMsg ? null : cur)), 3200)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [lastAdded, hasCelebration])
 
@@ -68,6 +77,8 @@ export function HistoryTab({
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: '健身打卡数据备份' })
+        markExported()
+        setHintTimes(loadBackupHintTimes())
         setMsg('备份已分享，请保存到安全的地方（文件/微信/网盘）')
       } catch {
         /* 用户取消分享，不提示成功 */
@@ -79,6 +90,8 @@ export function HistoryTab({
     a.href = url
     a.download = fileName
     a.click()
+    markExported()
+    setHintTimes(loadBackupHintTimes())
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     setMsg('备份文件已导出，请保存到安全的地方（文件/微信/网盘）')
   }
@@ -104,8 +117,43 @@ export function HistoryTab({
   function confirmImport() {
     if (!pending) return
     onImport(pending)
-    setMsg(`导入成功：${pending.workouts.length} 天训练 · ${pending.body.length} 条体重 · ${pending.meals.length} 条饮食`)
+    setMsg(`导入成功：${pending.workouts.length} 天训练 · ${pending.body.length} 条体重 · ${pending.meals.length} 条饮食 · ${pending.routines.length} 个模板`)
     setPending(null)
+    setEditingId(null)
+    setEditError(false)
+  }
+
+  function snoozeHint() {
+    setHintTimes(dismissBackupHint())
+  }
+
+  function startEdit(exId: string, sets: { reps: number; weight?: number }[]) {
+    setEditingId(exId)
+    setEditError(false)
+    setDraftSets(sets.map((x) => ({ reps: String(x.reps), weight: x.weight != null ? String(x.weight) : '' })))
+  }
+
+  function setDraft(i: number, field: 'reps' | 'weight', v: string) {
+    setEditError(false)
+    setDraftSets((p) => p.map((d, j) => (j === i ? { ...d, [field]: v } : d)))
+  }
+
+  function saveEdit(workoutId: string, exerciseId: string) {
+    const sets: { reps: number; weight?: number }[] = []
+    for (const d of draftSets) {
+      const reps = Number(d.reps)
+      if (!d.reps || Number.isNaN(reps) || reps <= 0) {
+        setEditError(true)
+        return // 有非法组就不保存
+      }
+      const set: { reps: number; weight?: number } = { reps }
+      const w = Number(d.weight)
+      if (d.weight && !Number.isNaN(w) && w > 0) set.weight = w
+      sets.push(set)
+    }
+    if (sets.length === 0) return
+    onUpdateSets(workoutId, exerciseId, sets)
+    setEditingId(null)
   }
 
   return (
@@ -141,21 +189,56 @@ export function HistoryTab({
               </div>
               <div className="mt-2 h-px bg-line" />
               <ul className="mt-2 space-y-1">
-                {w.exercises.map((ex) => (
-                  <li key={ex.id ?? ex.name} className="group flex items-center justify-between gap-2 text-[14px] text-ink">
-                    <span>
-                      {ex.name}
-                      <span className="text-muted"> — {ex.sets.map((s) => (s.weight ? `${s.reps}×${s.weight}kg` : `${s.reps}次`)).join('、')}</span>
-                    </span>
-                    <button
-                      onClick={() => ex.id && onRemoveExercise(w.id, ex.id)}
-                      aria-label={`删除 ${ex.name}`}
-                      className="-m-2.5 p-2.5 shrink-0 leading-none text-muted/40 hover:text-clay text-sm"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
+                {w.exercises.map((ex) =>
+                  editingId === ex.id ? (
+                    <li key={ex.id ?? ex.name} className="rounded-xl bg-paper border border-line p-2.5">
+                      <p className="text-[13px] text-ink mb-1.5">{ex.name}</p>
+                      <div className="space-y-1.5">
+                        {draftSets.map((d, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted w-8">第{i + 1}组</span>
+                            <input
+                              value={d.reps}
+                              onChange={(e) => setDraft(i, 'reps', e.target.value)}
+                              inputMode="numeric"
+                              placeholder="次数"
+                              className="w-16 px-2 py-1 rounded-lg border border-line bg-surface text-[13px] focus:outline-none focus:border-clay"
+                            />
+                            <input
+                              value={d.weight}
+                              onChange={(e) => setDraft(i, 'weight', e.target.value)}
+                              inputMode="decimal"
+                              placeholder="kg"
+                              className="w-16 px-2 py-1 rounded-lg border border-line bg-surface text-[13px] focus:outline-none focus:border-clay"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {editError && <p className="mt-2 text-[12px] text-clay">每组次数都要大于 0；想删整组请用列表右侧的 ✕</p>}
+                      <div className="mt-2 flex justify-end gap-3 text-[12px]">
+                        <button onClick={() => { setEditingId(null); setEditError(false) }} className="text-muted/60 hover:text-ink">取消</button>
+                        <button onClick={() => saveEdit(w.id, ex.id!)} className="text-clay font-medium">保存修改</button>
+                      </div>
+                    </li>
+                  ) : (
+                    <li key={ex.id ?? ex.name} className="group flex items-center justify-between gap-2 text-[14px] text-ink">
+                      <button
+                        onClick={() => ex.id && startEdit(ex.id, ex.sets)}
+                        className="min-w-0 flex-1 text-left leading-snug"
+                      >
+                        {ex.name}
+                        <span className="text-muted"> — {ex.sets.map((s) => (s.weight ? `${s.reps}×${s.weight}kg` : `${s.reps}次`)).join('、')}</span>
+                      </button>
+                      <button
+                        onClick={() => ex.id && onRemoveExercise(w.id, ex.id)}
+                        aria-label={`删除 ${ex.name}`}
+                        className="-m-2.5 p-2.5 shrink-0 leading-none text-muted/40 hover:text-clay text-sm"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ),
+                )}
               </ul>
             </li>
           ))}
@@ -166,6 +249,14 @@ export function HistoryTab({
       <div className="mt-8 rounded-2xl bg-surface border border-line p-4">
         <p className="font-display text-[13px] italic text-muted mb-1">数据管理</p>
         <p className="text-[12px] text-muted leading-relaxed">数据只存在这台手机上，换手机或清缓存前请先导出备份。</p>
+        {hint.show && (
+          <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl bg-clay/10 border border-clay/30 px-3 py-2">
+            <p className="text-[12px] text-ink">
+              {hint.reason === 'never' ? '已有几天的训练记录，建议现在导出第一份备份' : '距上次导出已超过 30 天，建议更新备份'}
+            </p>
+            <button onClick={snoozeHint} className="shrink-0 text-[12px] text-clay hover:underline">知道了</button>
+          </div>
+        )}
         <div className="mt-3 flex gap-2">
           <button onClick={() => void doExport()} className="flex-1 py-2.5 rounded-xl border border-line text-[13px] text-ink hover:border-clay/40 hover:text-clay transition">
             导出备份
@@ -179,7 +270,7 @@ export function HistoryTab({
         {pending && (
           <div className="mt-3 rounded-xl bg-paper border border-clay/30 p-3 text-[12px]">
             <p className="text-ink">
-              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {pending.body.length} 条体重 · {pending.meals.length} 条饮食
+              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {pending.body.length} 条体重 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板
             </p>
             <div className="mt-2 flex gap-2">
               <button onClick={confirmImport} className="px-3 py-1.5 rounded-lg bg-clay text-white">确认导入</button>

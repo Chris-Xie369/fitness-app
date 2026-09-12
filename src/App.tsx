@@ -8,11 +8,12 @@ import { StatsTab } from './tabs/StatsTab'
 import { HistoryTab } from './tabs/HistoryTab'
 import { Celebration } from './components/Celebration'
 import { newlyEarned } from './lib/achievements'
+import { deleteRoutine, upsertRoutine } from './lib/routines'
 import type { Achievement } from './lib/achievements'
-import { loadBody, loadMeals, loadWorkouts, saveBody, saveMeals, saveWorkouts } from './storage'
+import { loadBody, loadMeals, loadRoutines, loadWorkouts, saveBody, saveMeals, saveRoutines, saveWorkouts } from './storage'
 import type { BackupData } from './storage'
 import { todayStr } from './lib/streak'
-import type { BodyEntry, MealEntry, Workout } from './types'
+import type { BodyEntry, MealEntry, Routine, Workout } from './types'
 
 type Tab = 'today' | 'record' | 'diet' | 'body' | 'stats' | 'history'
 type LastAdded = { at: number; appended: boolean; count: number; date: string }
@@ -20,6 +21,7 @@ type LastAdded = { at: number; appended: boolean; count: number; date: string }
 export default function App() {
   const [workouts, setWorkouts] = useState<Workout[]>(() => loadWorkouts())
   const [meals, setMeals] = useState<MealEntry[]>(() => loadMeals())
+  const [routines, setRoutines] = useState<Routine[]>(() => loadRoutines())
   const [body, setBody] = useState<BodyEntry[]>(() => loadBody())
   const [tab, setTab] = useState<Tab>('today')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
@@ -32,6 +34,7 @@ export default function App() {
   // 状态一变就自动存（刷新不丢）
   useEffect(() => saveWorkouts(workouts), [workouts])
   useEffect(() => saveMeals(meals), [meals])
+  useEffect(() => saveRoutines(routines), [routines])
   useEffect(() => saveBody(body), [body])
 
   // 同一天再记：动作追加进当天的 workout（与体重"同日更新"语义一致），而不是新建一条
@@ -58,9 +61,25 @@ export default function App() {
         .filter((w) => w.exercises.length > 0),
     )
   }
+  // 修改历史训练里某动作的组数据（修正错录，不用删除重录）
+  function updateExerciseSets(workoutId: string, exerciseId: string, sets: { reps: number; weight?: number }[]) {
+    setWorkouts((prev) =>
+      prev.map((w) =>
+        w.id === workoutId
+          ? { ...w, exercises: w.exercises.map((ex) => (ex.id === exerciseId ? { ...ex, sets } : ex)) }
+          : w,
+      ),
+    )
+  }
 
   function addMeal(m: MealEntry) {
     setMeals((prev) => [m, ...prev])
+  }
+  function handleUpsertRoutine(name: string, exercises: { name: string; sets: Routine['exercises'][number]['sets'] }[]) {
+    setRoutines((prev) => upsertRoutine(prev, name, exercises))
+  }
+  function handleDeleteRoutine(id: string) {
+    setRoutines((prev) => deleteRoutine(prev, id))
   }
   function deleteMeal(id: string) {
     setMeals((prev) => prev.filter((m) => m.id !== id))
@@ -75,11 +94,12 @@ export default function App() {
   function deleteBody(id: string) {
     setBody((prev) => prev.filter((e) => e.id !== id))
   }
-  // 备份恢复：整体替换三类数据（useEffect 会立刻持久化）
+  // 备份恢复：整体替换四类数据（useEffect 会立刻持久化）
   function importBackup(data: BackupData) {
     setWorkouts(data.workouts)
     setBody(data.body)
     setMeals(data.meals)
+    setRoutines(data.routines)
   }
 
   return (
@@ -96,13 +116,19 @@ export default function App() {
             />
           )}
           {tab === 'record' && (
-            <RecordTab onSave={addWorkout} workouts={workouts} />
+            <RecordTab
+              onSave={addWorkout}
+              workouts={workouts}
+              routines={routines}
+              onUpsertRoutine={handleUpsertRoutine}
+              onDeleteRoutine={handleDeleteRoutine}
+            />
           )}
           {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
           {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} />}
           {tab === 'history' && (
-            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
           )}
         </main>
 

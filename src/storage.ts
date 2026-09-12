@@ -1,8 +1,9 @@
-import type { BodyEntry, MealEntry, Workout } from './types'
+import type { BodyEntry, MealEntry, Routine, Workout } from './types'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
 const MEALS_KEY = 'fitness-app:meals'
+const ROUTINES_KEY = 'fitness-app:routines'
 
 const newId = (): string =>
   globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
@@ -108,9 +109,52 @@ export function saveMeals(meals: MealEntry[]): void {
   }
 }
 
+export function loadRoutines(): Routine[] {
+  try {
+    const raw = localStorage.getItem(ROUTINES_KEY)
+    if (!raw) return []
+    const data: unknown = JSON.parse(raw)
+    return Array.isArray(data) ? data.filter(isValidRoutine) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveRoutines(routines: Routine[]): void {
+  try {
+    localStorage.setItem(ROUTINES_KEY, JSON.stringify(routines))
+  } catch {
+    /* 静默失败 */
+  }
+}
+
+function isValidRoutine(r: unknown): r is Routine {
+  if (!r || typeof r !== 'object') return false
+  const x = r as Record<string, unknown>
+  return (
+    typeof x.id === 'string' &&
+    typeof x.name === 'string' &&
+    isNum(x.createdAt) &&
+    Array.isArray(x.exercises) &&
+    (x.exercises as unknown[]).every((e0) => {
+      const e = e0 as Record<string, unknown>
+      return (
+        typeof e?.name === 'string' &&
+        Array.isArray(e.sets) &&
+        (e.sets as unknown[]).every(
+          (s0) => {
+            const s = s0 as Record<string, unknown>
+            return isNum(s?.reps) && s.reps > 0 && (s.weight === undefined || (isNum(s.weight) && s.weight > 0))
+          },
+        )
+      )
+    })
+  )
+}
+
 // ===== 备份导出 / 导入 =====
 
-export type BackupData = { workouts: Workout[]; body: BodyEntry[]; meals: MealEntry[] }
+export type BackupData = { workouts: Workout[]; body: BodyEntry[]; meals: MealEntry[]; routines: Routine[] }
 
 function isNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
@@ -172,9 +216,48 @@ export function parseBackup(text: string): BackupData | null {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((e) => ({ ...e, id: restoreId() }))
   const meals = (pick('meals', (x) => isValidMeal(x)) as unknown as MealEntry[]).map((m) => ({ ...m, id: restoreId() }))
+  const routines = pick('routines', isValidRoutine) as unknown as Routine[]
 
-  if (workouts.length === 0 && body.length === 0 && meals.length === 0) return null
-  return { workouts, body, meals }
+  if (workouts.length === 0 && body.length === 0 && meals.length === 0 && routines.length === 0) return null
+  return { workouts, body, meals, routines }
+}
+
+const HINT_KEY = 'fitness-app:backupHint'
+
+export type BackupHintTimes = { lastExportAt: number | null; dismissedAt: number | null }
+
+export function loadBackupHintTimes(): BackupHintTimes {
+  try {
+    const raw = localStorage.getItem(HINT_KEY)
+    if (!raw) return { lastExportAt: null, dismissedAt: null }
+    const x = JSON.parse(raw) as Record<string, unknown>
+    return {
+      lastExportAt: typeof x.lastExportAt === 'number' ? x.lastExportAt : null,
+      dismissedAt: typeof x.dismissedAt === 'number' ? x.dismissedAt : null,
+    }
+  } catch {
+    return { lastExportAt: null, dismissedAt: null }
+  }
+}
+
+function saveHintTimes(t: BackupHintTimes): void {
+  try {
+    localStorage.setItem(HINT_KEY, JSON.stringify(t))
+  } catch {
+    /* 静默失败 */
+  }
+}
+
+export function markExported(): void {
+  const t = loadBackupHintTimes()
+  saveHintTimes({ ...t, lastExportAt: Date.now(), dismissedAt: null })
+}
+
+export function dismissBackupHint(): BackupHintTimes {
+  const t = loadBackupHintTimes()
+  const next = { ...t, dismissedAt: Date.now() }
+  saveHintTimes(next)
+  return next
 }
 
 // 读出当前全部数据，打包成备份文本
@@ -187,6 +270,7 @@ export function exportBackup(): string {
       workouts: loadWorkouts(),
       body: loadBody(),
       meals: loadMeals(),
+      routines: loadRoutines(),
     },
     null,
     2,

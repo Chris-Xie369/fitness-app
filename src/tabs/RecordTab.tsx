@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import type { Exercise, SetEntry, Workout } from '../types'
+import { useEffect, useState } from 'react'
+import type { Exercise, Routine, SetEntry, Workout } from '../types'
 import { todayStr } from '../lib/streak'
 import { dayLabel, shiftDate } from '../lib/date'
 import { formatSets, lastSetsFor, recentExerciseNames } from '../lib/exercises'
+import { validExercises } from '../lib/routines'
 
 // 表单里的"一组"用字符串（input 的 value 一律是字符串），保存时再转成数字
 type DraftSet = { reps: string; weight: string }
@@ -22,24 +23,49 @@ function toDraftSets(sets: SetEntry[]): DraftSet[] {
 export function RecordTab({
   onSave,
   workouts,
+  routines,
+  onUpsertRoutine,
+  onDeleteRoutine,
 }: {
   onSave: (w: Workout) => void
   workouts: Workout[]
+  routines: Routine[]
+  onUpsertRoutine: (name: string, exercises: { name: string; sets: SetEntry[] }[]) => void
+  onDeleteRoutine: (id: string) => void
 }) {
   const today = todayStr()
   const [date, setDate] = useState(today)
   const isToday = date === today
   const alreadyOnDate = workouts.some((w) => w.date === date)
   const [exercises, setExercises] = useState<DraftExercise[]>([emptyExercise()])
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [confirmLoad, setConfirmLoad] = useState<string | null>(null)
+  const [savedHint, setSavedHint] = useState<string | null>(null)
 
   // 最近练过的动作：前 6 个做快捷胶囊，全部用于输入框自动补全
   const recent = recentExerciseNames(workouts, 6)
   const allNames = recentExerciseNames(workouts)
 
+  useEffect(() => {
+    if (!confirmLoad) return
+    const t = setTimeout(() => setConfirmLoad(null), 4000)
+    return () => clearTimeout(t)
+  }, [confirmLoad])
+
+  useEffect(() => {
+    if (!savedHint) return
+    const t = setTimeout(() => setSavedHint(null), 2000)
+    return () => clearTimeout(t)
+  }, [savedHint])
+
   // 切换日期同时清空表单：防止填了一半的动作保存到错误日期
   function goTo(next: string) {
     setDate(next)
     setExercises([emptyExercise()])
+    setConfirmLoad(null)
+    setSavingTemplate(false)
+    setTemplateName('')
   }
   // 函数式更新：快速连点 ‹ › 不会因闭包陈旧而丢步
   function stepDate(delta: number) {
@@ -48,6 +74,9 @@ export function RecordTab({
       return delta > 0 && next > today ? prev : next
     })
     setExercises([emptyExercise()])
+    setConfirmLoad(null)
+    setSavingTemplate(false)
+    setTemplateName('')
   }
 
   function addExercise() {
@@ -67,7 +96,7 @@ export function RecordTab({
   }
   function updateSet(exId: string, idx: number, field: 'reps' | 'weight', value: string) {
     setExercises((p) =>
-      p.map((e) => (e.id === exId ? { ...e, sets: e.sets.map((s, i) => (i === idx ? { ...s, [field]: value } : s)) } : e))
+      p.map((e) => (e.id === exId ? { ...e, sets: e.sets.map((s, i) => (i === idx ? { ...s, [field]: value } : s)) } : e)),
     )
   }
   // 选历史动作：填入名字，并把上次的重量/次数整组带进来
@@ -78,7 +107,22 @@ export function RecordTab({
     )
   }
 
-  function handleSave() {
+  // 表单是否填了内容（载入模板前判断要不要二次确认覆盖）
+  function formDirty(): boolean {
+    return exercises.some((e) => e.name.trim() || e.sets.some((s) => s.reps || s.weight))
+  }
+
+  // 点模板：表单为空直接载入；有内容时点第二次确认覆盖
+  function tapRoutine(r: Routine) {
+    if (formDirty() && confirmLoad !== r.id) {
+      setConfirmLoad(r.id)
+      return
+    }
+    setConfirmLoad(null)
+    setExercises(r.exercises.map((ex) => ({ id: uid(), name: ex.name, sets: toDraftSets(ex.sets) })))
+  }
+
+  function buildValid(): Exercise[] {
     const valid: Exercise[] = []
     for (const e of exercises) {
       const name = e.name.trim()
@@ -94,10 +138,24 @@ export function RecordTab({
       }
       if (sets.length > 0) valid.push({ id: uid(), name, sets })
     }
-    if (valid.length === 0) return
+    return valid
+  }
 
+  function handleSave() {
+    const valid = buildValid()
+    if (valid.length === 0) return
     onSave({ id: uid(), date, exercises: valid, createdAt: Date.now() })
     setExercises([emptyExercise()]) // 重置表单
+  }
+
+  function saveAsTemplate() {
+    const valid = validExercises(buildValid())
+    const name = templateName.trim()
+    if (!name || valid.length === 0) return
+    onUpsertRoutine(name, valid.map((e) => ({ name: e.name, sets: e.sets })))
+    setTemplateName('')
+    setSavingTemplate(false)
+    setSavedHint(`模板「${name}」已保存`)
   }
 
   const shortLabel = dayLabel(date).replace(/^(今天|昨天) · /, '')
@@ -146,6 +204,29 @@ export function RecordTab({
         </div>
       )}
       <p className="text-[13px] text-muted mt-2 text-center">{subtitle}</p>
+
+      {/* 训练模板 */}
+      {routines.length > 0 && (
+        <div className="mt-4">
+          <p className="font-display text-[12px] italic text-muted mb-1.5">我的模板 · 点按载入</p>
+          <div className="flex flex-wrap gap-1.5">
+            {routines.map((r) => (
+              <span key={r.id} className={`inline-flex items-center rounded-full border text-[12px] ${confirmLoad === r.id ? 'border-clay bg-clay/10' : 'border-line bg-paper'}`}>
+                <button onClick={() => tapRoutine(r)} className="py-1 pl-2.5 pr-1.5 text-ink hover:text-clay transition">
+                  {confirmLoad === r.id ? '再点一次覆盖' : `📂 ${r.name}`}
+                </button>
+                <button
+                  onClick={() => onDeleteRoutine(r.id)}
+                  aria-label={`删除模板 ${r.name}`}
+                  className="-my-1.5 -mr-1.5 py-1.5 px-2 text-muted/40 hover:text-clay"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <datalist id="exercise-names">
         {allNames.map((n) => (
@@ -227,7 +308,32 @@ export function RecordTab({
         })}
       </div>
 
-      <button onClick={addExercise} className="mt-4 text-[14px] text-clay hover:underline">+ 加一个动作</button>
+      <div className="mt-4 flex items-center justify-between">
+        <button onClick={addExercise} className="text-[14px] text-clay hover:underline">+ 加一个动作</button>
+        {savingTemplate ? (
+          <span className="flex items-center gap-1.5">
+            <input
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveAsTemplate()}
+              placeholder="模板名，如：推日"
+              autoFocus
+              className="w-32 px-2 py-1.5 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
+            />
+            <button onClick={saveAsTemplate} className="text-[13px] text-clay hover:underline">保存</button>
+            <button onClick={() => setSavingTemplate(false)} className="text-[13px] text-muted/60 hover:underline">取消</button>
+          </span>
+        ) : (
+          <button
+            onClick={() => setSavingTemplate(true)}
+            disabled={buildValid().length === 0}
+            className="text-[13px] text-muted hover:text-clay enabled:hover:underline disabled:opacity-30 transition"
+          >
+            💾 存为模板
+          </button>
+        )}
+      </div>
+      {savedHint && <p className="mt-2 text-right text-[12px] text-clay">{savedHint}</p>}
 
       <button
         onClick={handleSave}
