@@ -72,7 +72,11 @@ export default function App() {
             />
           )}
           {tab === 'record' && (
-            <RecordTab onSave={addWorkout} alreadyToday={workouts.some((w) => w.date === todayStr())} />
+            <RecordTab
+              onSave={addWorkout}
+              alreadyToday={workouts.some((w) => w.date === todayStr())}
+              workouts={workouts}
+            />
           )}
           {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
