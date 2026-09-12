@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import type { MealEntry, MealType } from '../types'
-import { dayKcal, MEAL_TYPES, weeklyKcal } from '../lib/diet'
+import { dayKcal, dayLabel, MEAL_TYPES, shiftDate, weeklyKcal } from '../lib/diet'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
 
@@ -13,7 +13,12 @@ function token(name: string, fallback: string): string {
 }
 
 type Draft = { name: string; kcal: string }
-const emptyDraft: Record<MealType, Draft> = { breakfast: { name: '', kcal: '' }, lunch: { name: '', kcal: '' }, dinner: { name: '', kcal: '' }, snack: { name: '', kcal: '' } }
+const emptyDraft: Record<MealType, Draft> = {
+  breakfast: { name: '', kcal: '' },
+  lunch: { name: '', kcal: '' },
+  dinner: { name: '', kcal: '' },
+  snack: { name: '', kcal: '' },
+}
 
 function KcalTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { date: string; kcal: number } }> }) {
   if (!active || !payload?.length) return null
@@ -28,15 +33,23 @@ function KcalTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
 
 export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd: (m: MealEntry) => void; onDelete: (id: string) => void }) {
   const today = todayStr()
-  const todayMeals = meals.filter((m) => m.date === today)
-  const total = dayKcal(meals, today)
+  const [date, setDate] = useState(today)
+  const isToday = date === today
+  const dayMeals = meals.filter((m) => m.date === date)
+  const total = dayKcal(meals, date)
   const week = weeklyKcal(meals)
   const hasWeekData = week.some((d) => d.kcal > 0)
   const [drafts, setDrafts] = useState(emptyDraft)
 
   const clay = token('--color-clay', '#B8553A')
+  const ink = token('--color-ink', '#211C16')
   const muted = token('--color-muted', '#8C8275')
   const line = token('--color-line', '#E2DBCD')
+
+  function goTo(next: string) {
+    setDate(next)
+    setDrafts(emptyDraft)
+  }
 
   function setDraft(meal: MealType, field: keyof Draft, value: string) {
     setDrafts((p) => ({ ...p, [meal]: { ...p[meal], [field]: value } }))
@@ -57,7 +70,7 @@ export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd:
     if (!canAdd(meal)) return
     onAdd({
       id: uid(),
-      date: today,
+      date,
       meal,
       name: drafts[meal].name.trim(),
       kcal: Math.round(Number(drafts[meal].kcal)),
@@ -70,9 +83,34 @@ export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd:
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">饮食</h1>
 
-      {/* 今日总热量 */}
-      <div className="mt-6 rounded-2xl bg-surface border border-line p-6 text-center">
-        <p className="font-display text-[15px] text-muted">今天已吃</p>
+      {/* 日期切换：补记/修改过去任意一天 */}
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <button
+          onClick={() => goTo(shiftDate(date, -1))}
+          className="h-8 w-8 rounded-full border border-line text-muted hover:text-clay hover:border-clay/40 transition"
+          aria-label="前一天"
+        >
+          ‹
+        </button>
+        <p className="min-w-[150px] text-center text-[14px] text-ink">{dayLabel(date)}</p>
+        <button
+          onClick={() => !isToday && goTo(shiftDate(date, 1))}
+          disabled={isToday}
+          className="h-8 w-8 rounded-full border border-line text-muted transition enabled:hover:text-clay enabled:hover:border-clay/40 disabled:opacity-30"
+          aria-label="后一天"
+        >
+          ›
+        </button>
+      </div>
+      {!isToday && (
+        <div className="mt-2 text-center">
+          <button onClick={() => goTo(today)} className="-my-2 py-2 px-3 text-[12px] text-clay hover:underline">回到今天</button>
+        </div>
+      )}
+
+      {/* 当日总热量 */}
+      <div className="mt-4 rounded-2xl bg-surface border border-line p-6 text-center">
+        <p className="font-display text-[15px] text-muted">{isToday ? '今天已吃' : '当天已吃'}</p>
         <p className="font-display text-[56px] leading-none mt-1 text-clay">
           {total}<span className="text-[20px] text-muted"> kcal</span>
         </p>
@@ -81,7 +119,7 @@ export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd:
       {/* 四餐 */}
       <div className="mt-5 space-y-3">
         {MEAL_TYPES.map(({ type, label, emoji }) => {
-          const items = todayMeals.filter((m) => m.meal === type)
+          const items = dayMeals.filter((m) => m.meal === type)
           const subtotal = items.reduce((n, m) => n + m.kcal, 0)
           return (
             <div key={type} className="rounded-2xl bg-surface border border-line p-4">
@@ -137,15 +175,21 @@ export function DietTab({ meals, onAdd, onDelete }: { meals: MealEntry[]; onAdd:
         })}
       </div>
 
-      {/* 近 7 天热量 */}
+      {/* 近 7 天热量（点柱子跳到那天查看/补记） */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-        <p className="font-display text-[13px] italic text-muted mb-2">近 7 天 · 每日热量</p>
+        <p className="font-display text-[13px] italic text-muted mb-2">近 7 天 · 每日热量（点柱子可查看/补记）</p>
         {hasWeekData ? (
           <ResponsiveContainer width="100%" height={140}>
             <BarChart data={week} margin={{ top: 5, right: 8, bottom: 0, left: 8 }}>
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: muted }} axisLine={{ stroke: line }} tickLine={false} interval={0} />
               <Tooltip cursor={{ fill: 'rgba(140,130,117,0.08)' }} content={<KcalTooltip />} />
-              <Bar dataKey="kcal" maxBarSize={26} isAnimationActive={false} shape={<ZeroBar fill={clay} zeroFill={line} />} />
+              <Bar
+                dataKey="kcal"
+                maxBarSize={26}
+                isAnimationActive={false}
+                shape={<ZeroBar fill={clay} zeroFill={line} selectedFill={ink} selectedDate={date} />}
+                onClick={(entry: { payload?: { date: string } }) => entry.payload && goTo(entry.payload.date)}
+              />
             </BarChart>
           </ResponsiveContainer>
         ) : (
