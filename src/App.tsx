@@ -9,6 +9,7 @@ import { HistoryTab } from './tabs/HistoryTab'
 import { Celebration } from './components/Celebration'
 import { newlyEarned } from './lib/achievements'
 import { deleteRoutine, upsertRoutine } from './lib/routines'
+import { restorePhotos } from './lib/photos'
 import { useRestTimer } from './hooks/useRestTimer'
 import type { Achievement } from './lib/achievements'
 import { loadMeals, loadMetrics, loadRoutines, loadSettings, loadWater, loadWorkouts, saveMeals, saveMetrics, saveRoutines, saveSettings, saveWater, saveWorkouts } from './storage'
@@ -129,7 +130,7 @@ export default function App() {
   function deleteMetric(id: string) {
     setMetrics((prev) => prev.filter((m) => m.id !== id))
   }
-  // 备份恢复：整体替换四类数据（useEffect 会立刻持久化）
+  // 备份恢复：整体替换本地数据（useEffect 会立刻持久化）；照片写入 IndexedDB 并返回恢复结果
   function importBackup(data: BackupData) {
     setWorkouts(data.workouts)
     setMetrics(data.metrics ?? [])
@@ -137,6 +138,7 @@ export default function App() {
     setRoutines(data.routines)
     setWater(data.water ?? [])
     if (data.settings) setSettings(data.settings) // 老备份无 settings 时保留当前设置
+    return data.photos?.length ? restorePhotos(data.photos) : Promise.resolve(undefined)
   }
 
   return (

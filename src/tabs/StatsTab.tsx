@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import type { MealEntry, Workout } from '../types'
 import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
 import { avgKcalByTraining, kcalTrend } from '../lib/diet'
-import { weeklyReport } from '../lib/weekly'
+import { weeklyInsight, weeklyReport } from '../lib/weekly'
 import { ringGeometry } from '../lib/goals'
 import { exerciseProgress } from '../lib/progress'
 import { estimate1RM, personalRecords } from '../lib/pr'
@@ -183,6 +183,7 @@ export function StatsTab({
             neutral
           />
         </div>
+        <p className="mt-3 text-[12px] text-ink/70 leading-relaxed">📈 {weeklyInsight(report)}</p>
       </div>
 
       {/* 近 8 周训练量 */}
@@ -360,7 +361,7 @@ function WeekCell({ label, cur, prev, prevDays = 0, unit, neutral = false, compa
       </p>
       <p className="mt-1 text-[11px] text-muted leading-tight">{label}</p>
       <p className={`text-[10px] mt-0.5 ${tone}`}>
-        {cur == null && prevDays === 0 ? '暂无记录' : `上周 ${fmt(prev)}${arrow}`}
+        {prevDays === 0 ? '上周无记录' : `上周 ${fmt(prev)}${cur == null ? '' : arrow}`}
       </p>
     </div>
   )

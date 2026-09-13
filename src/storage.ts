@@ -258,7 +258,7 @@ export function saveMetrics(metrics: MetricEntry[]): void {
 
 // ===== 备份导出 / 导入 =====
 
-export type BackupData = { workouts: Workout[]; body?: BodyEntry[]; metrics: MetricEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; settings?: AppSettings }
+export type BackupData = { workouts: Workout[]; body?: BodyEntry[]; metrics: MetricEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; settings?: AppSettings; photos?: unknown[] }
 
 function isNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
@@ -339,6 +339,7 @@ export function parseBackup(text: string): BackupData | null {
     : undefined
 
   const hasProfile = !!settings && (settings.heightCm != null || settings.sex != null || settings.birthYear != null)
+  const photos = Array.isArray(obj.photos) ? obj.photos : []
   if (
     workouts.length === 0 &&
     body.length === 0 &&
@@ -346,10 +347,11 @@ export function parseBackup(text: string): BackupData | null {
     meals.length === 0 &&
     routines.length === 0 &&
     water.length === 0 &&
+    photos.length === 0 &&
     !hasProfile
   )
     return null
-  return { workouts, body: [], metrics, meals, routines, water, settings }
+  return { workouts, body: [], metrics, meals, routines, water, settings, photos }
 }
 
 const HINT_KEY = 'fitness-app:backupHint'

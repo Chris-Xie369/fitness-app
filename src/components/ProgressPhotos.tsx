@@ -158,7 +158,7 @@ export function ProgressPhotos() {
           </div>
         </>
       ) : null}
-      <p className="mt-3 text-[10px] text-muted/60">照片只存在这台手机上，不包含在导出备份里。</p>
+      <p className="mt-3 text-[10px] text-muted/60">照片存在这台手机上，并会一起包含在导出备份里。</p>
 
       {/* 双图对比：absolute 限定在手机屏幕容器内 */}
       {comparing && comparePhotos.length === 2 && (

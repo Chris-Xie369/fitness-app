@@ -68,3 +68,27 @@ export function weeklyReport(workouts: Workout[], kcalByDate: Map<string, number
     elapsedDays,
   }
 }
+
+// 教练式一句话周报：本周 vs 上周同星期区间
+export function weeklyInsight(r: WeeklyReport): string {
+  const t = r.thisWeek
+  const l = r.lastWeek
+  if (t.trainDays === 0) return '这周还没开练，挑个时间完成第一次打卡吧 💪'
+  if (l.trainDays === 0) return `这周已练 ${t.trainDays} 天，开了个好头，继续保持！`
+  const parts: string[] = []
+  const dd = t.trainDays - l.trainDays
+  if (dd > 0) parts.push(`训练 ${t.trainDays} 天，比上周多 ${dd} 天`)
+  else if (dd < 0) parts.push(`训练 ${t.trainDays} 天，比上周少 ${-dd} 天`)
+  else parts.push(`训练 ${t.trainDays} 天，与上周持平`)
+  if (l.totalSets > 0) {
+    const ds = t.totalSets - l.totalSets
+    if (ds >= 4) parts.push(`多完成 ${ds} 组`)
+    else if (ds <= -4) parts.push(`少完成 ${-ds} 组`)
+  }
+  if (t.kcalDays > 0 && l.kcalDays > 0) {
+    const dk = t.avgKcal - l.avgKcal
+    if (dk >= 150) parts.push(`日均多吃 ${dk} kcal`)
+    else if (dk <= -150) parts.push(`日均少吃 ${-dk} kcal`)
+  }
+  return `${parts.join('，')}。`
+}

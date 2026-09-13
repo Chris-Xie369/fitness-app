@@ -3,6 +3,7 @@ import type { Workout } from '../types'
 import type { BackupData } from '../storage'
 import { dismissBackupHint, exportBackup, loadBackupHintTimes, markExported, parseBackup } from '../storage'
 import { backupHintState } from '../lib/backup'
+import { exportPhotosForBackup } from '../lib/photos'
 
 const WEEKDAYS = '日一二三四五六'
 
@@ -32,7 +33,7 @@ export function HistoryTab({
   onRemoveExercise: (workoutId: string, exerciseId: string) => void
   onUpdateSets: (workoutId: string, exerciseId: string, sets: { reps: number; weight?: number }[]) => void
   onBack: () => void
-  onImport: (data: BackupData) => void
+  onImport: (data: BackupData) => Promise<{ restored: number; skipped: number } | undefined> | undefined
   lastAdded: { at: number; appended: boolean; count: number; date: string } | null
   hasCelebration: boolean
 }) {
@@ -48,6 +49,7 @@ export function HistoryTab({
   const [draftSets, setDraftSets] = useState<{ reps: string; weight: string }[]>([])
   const [editError, setEditError] = useState(false)
   const [hintTimes, setHintTimes] = useState(loadBackupHintTimes)
+  const [exporting, setExporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const hint = backupHintState({ now: Date.now(), ...hintTimes, workoutCount: workouts.length })
 
@@ -74,29 +76,43 @@ export function HistoryTab({
   }, [lastAdded, hasCelebration])
 
   async function doExport() {
-    const fileName = `fitness-backup-${todayStamp()}.json`
-    const file = new File([exportBackup()], fileName, { type: 'application/json' })
-    // iPhone 主屏幕 PWA 里 blob 下载会静默失败：优先系统分享（可存到「文件」/微信/网盘）
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: '健身打卡数据备份' })
-        markExported()
-        setHintTimes(loadBackupHintTimes())
-        setMsg('备份已分享，请保存到安全的地方（文件/微信/网盘）')
-      } catch {
-        /* 用户取消分享，不提示成功 */
+    if (exporting) return
+    setExporting(true)
+    try {
+      const fileName = `fitness-backup-${todayStamp()}.json`
+      const data = JSON.parse(exportBackup())
+      data.photos = await exportPhotosForBackup()
+      const file = new File([JSON.stringify(data, null, 2)], fileName, { type: 'application/json' })
+      // iPhone 主屏幕 PWA 里 blob 下载会静默失败：优先系统分享（可存到「文件」/微信/网盘）
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: '健身打卡数据备份' })
+          markExported()
+          setHintTimes(loadBackupHintTimes())
+          setMsg('备份已分享，请保存到安全的地方（文件/微信/网盘）')
+        } catch (err) {
+          // AbortError = 用户主动取消；文件过大/手势超时等真实失败必须提示
+          if ((err as Error)?.name !== 'AbortError') {
+            setMsg('分享失败，请重试，或照片较多时先减少照片')
+          }
+        }
+        return
       }
-      return
+      const url = URL.createObjectURL(new Blob([file], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      markExported()
+      setHintTimes(loadBackupHintTimes())
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      setMsg('备份文件已导出，请保存到安全的地方（文件/微信/网盘）')
+    } catch {
+      // 照片库读取失败/序列化失败：不阻断，提示重试
+      setMsg('导出失败，请重试')
+    } finally {
+      setExporting(false)
     }
-    const url = URL.createObjectURL(new Blob([file], { type: 'application/json' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    a.click()
-    markExported()
-    setHintTimes(loadBackupHintTimes())
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-    setMsg('备份文件已导出，请保存到安全的地方（文件/微信/网盘）')
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -117,10 +133,16 @@ export function HistoryTab({
     reader.readAsText(file)
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!pending) return
-    onImport(pending)
-    setMsg(`导入成功：${pending.workouts.length} 天训练 · ${(pending.metrics?.length ?? 0)} 条身体记录 · ${pending.meals.length} 条饮食 · ${pending.routines.length} 个模板`)
+    const photoTotal = pending.photos?.length ?? 0
+    const result = await onImport(pending)
+    let text = `导入成功：${pending.workouts.length} 天训练 · ${(pending.metrics?.length ?? 0)} 条身体记录 · ${pending.meals.length} 条饮食 · ${pending.routines.length} 个模板`
+    if (photoTotal > 0 && result) {
+      text += ` · 照片恢复 ${result.restored}/${photoTotal} 张`
+      if (result.skipped > 0) text += `（${result.skipped} 张无法恢复）`
+    }
+    setMsg(text)
     setPending(null)
     setEditingId(null)
     setEditError(false)
@@ -342,8 +364,8 @@ export function HistoryTab({
           </div>
         )}
         <div className="mt-3 flex gap-2">
-          <button onClick={() => void doExport()} className="flex-1 py-2.5 rounded-xl border border-line text-[13px] text-ink hover:border-clay/40 hover:text-clay transition">
-            导出备份
+          <button onClick={() => void doExport()} disabled={exporting} className="flex-1 py-2.5 rounded-xl border border-line text-[13px] text-ink hover:border-clay/40 hover:text-clay transition disabled:opacity-40">
+            {exporting ? '正在导出...' : '导出备份'}
           </button>
           <button onClick={() => fileRef.current?.click()} className="flex-1 py-2.5 rounded-xl border border-line text-[13px] text-ink hover:border-clay/40 hover:text-clay transition">
             导入恢复
@@ -354,10 +376,10 @@ export function HistoryTab({
         {pending && (
           <div className="mt-3 rounded-xl bg-paper border border-clay/30 p-3 text-[12px]">
             <p className="text-ink">
-              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水
+              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
             </p>
             <div className="mt-2 flex gap-2">
-              <button onClick={confirmImport} className="px-3 py-1.5 rounded-lg bg-clay text-white">确认导入</button>
+              <button onClick={() => void confirmImport()} className="px-3 py-1.5 rounded-lg bg-clay text-white">确认导入</button>
               <button onClick={() => setPending(null)} className="px-3 py-1.5 rounded-lg text-muted">取消</button>
             </div>
           </div>
