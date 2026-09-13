@@ -15,6 +15,7 @@ export type Workout = {
   date: string
   exercises: Exercise[]
   note?: string
+  durationSec?: number
   createdAt: number
 }
 

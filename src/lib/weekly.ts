@@ -5,6 +5,7 @@ export type WeekSummary = {
   trainDays: number
   totalSets: number
   tonnage: number
+  durationMin: number
   avgKcal: number
   kcalDays: number
 }
@@ -27,9 +28,11 @@ export function summarizeWeek(
   }
   let totalSets = 0
   let tonnage = 0
+  let durationSec = 0
   for (const w of workouts) {
     if (dates.has(w.date)) {
       totalSets += w.exercises.reduce((n, ex) => n + ex.sets.length, 0)
+      durationSec += w.durationSec ?? 0
       for (const ex of w.exercises) {
         for (const set of ex.sets) {
           if (set.weight != null && set.weight > 0) tonnage += set.weight * set.reps
@@ -44,7 +47,7 @@ export function summarizeWeek(
     const k = kcalByDate.get(date) ?? 0
     if (k > 0) { kcalSum += k; kcalDays++ }
   }
-  return { trainDays, totalSets, tonnage: Math.round(tonnage), avgKcal: kcalDays ? Math.round(kcalSum / kcalDays) : 0, kcalDays }
+  return { trainDays, totalSets, tonnage: Math.round(tonnage), durationMin: Math.round(durationSec / 60), avgKcal: kcalDays ? Math.round(kcalSum / kcalDays) : 0, kcalDays }
 }
 
 export type WeeklyReport = {

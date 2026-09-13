@@ -31,6 +31,7 @@ export function normalizeWorkouts(workouts: Workout[]): Workout[] {
       id: first.id,
       date: first.date,
       createdAt: first.createdAt,
+      durationSec: ordered.map((w) => w.durationSec).find((v) => typeof v === 'number' && v > 0),
       exercises: ordered.flatMap((w) => w.exercises).map((ex) =>
         ex.id ? ex : { ...ex, id: newId() },
       ),
@@ -282,6 +283,7 @@ function isValidWorkout(x: Record<string, unknown>): boolean {
     isValidDate(x.date) &&
     isNum(x.createdAt) &&
     (x.note === undefined || typeof x.note === 'string') &&
+    (x.durationSec === undefined || (isNum(x.durationSec) && x.durationSec > 0)) &&
     Array.isArray(x.exercises) &&
     (x.exercises as unknown[]).every((e0) => {
       const e = e0 as Record<string, unknown>

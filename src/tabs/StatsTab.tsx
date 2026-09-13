@@ -170,15 +170,16 @@ export function StatsTab({
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-1.5 text-center">
-          <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} unit="天" />
-          <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} unit="组" />
-          <WeekCell label="总容量" cur={report.thisWeek.tonnage} prev={report.lastWeek.tonnage} unit="kg" compact />
+        <div className="grid grid-cols-5 gap-1 text-center">
+          <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} hasPrev={report.lastWeek.trainDays > 0} unit="天" />
+          <WeekCell label="训练时长" cur={report.thisWeek.durationMin || null} prev={report.lastWeek.durationMin} hasPrev={report.lastWeek.trainDays > 0} unit="分" />
+          <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} hasPrev={report.lastWeek.trainDays > 0} unit="组" />
+          <WeekCell label="总容量" cur={report.thisWeek.tonnage} prev={report.lastWeek.tonnage} hasPrev={report.lastWeek.trainDays > 0} unit="kg" compact />
           <WeekCell
             label={`日均热量${report.thisWeek.kcalDays > 0 ? `（${report.thisWeek.kcalDays} 天）` : ''}`}
             cur={report.thisWeek.kcalDays > 0 ? report.thisWeek.avgKcal : null}
             prev={report.lastWeek.avgKcal}
-            prevDays={report.lastWeek.kcalDays}
+            hasPrev={report.lastWeek.kcalDays > 0}
             unit="kcal"
             neutral
           />
@@ -340,11 +341,11 @@ function Stat({ value, unit, label }: { value: number; unit: string; label: stri
 }
 
 
-function WeekCell({ label, cur, prev, prevDays = 0, unit, neutral = false, compact = false }: {
+function WeekCell({ label, cur, prev, hasPrev = false, unit, neutral = false, compact = false }: {
   label: string
   cur: number | null
   prev: number
-  prevDays?: number
+  hasPrev?: boolean
   unit: string
   neutral?: boolean
   compact?: boolean
@@ -361,7 +362,7 @@ function WeekCell({ label, cur, prev, prevDays = 0, unit, neutral = false, compa
       </p>
       <p className="mt-1 text-[11px] text-muted leading-tight">{label}</p>
       <p className={`text-[10px] mt-0.5 ${tone}`}>
-        {prevDays === 0 ? '上周无记录' : `上周 ${fmt(prev)}${cur == null ? '' : arrow}`}
+        {!hasPrev ? '上周无记录' : `上周 ${fmt(prev)}${cur == null ? '' : arrow}`}
       </p>
     </div>
   )

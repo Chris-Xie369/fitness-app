@@ -24,6 +24,7 @@ function toDraftSets(sets: SetEntry[]): DraftSet[] {
 
 export function RecordTab({
   onSave,
+  onBeginWorkout,
   workouts,
   routines,
   onUpsertRoutine,
@@ -31,6 +32,7 @@ export function RecordTab({
   restTimer,
 }: {
   onSave: (w: Workout) => void
+  onBeginWorkout: () => void
   workouts: Workout[]
   routines: Routine[]
   onUpsertRoutine: (name: string, exercises: { name: string; sets: SetEntry[] }[]) => void
@@ -94,6 +96,7 @@ export function RecordTab({
     setExercises((p) => p.filter((e) => e.id !== id))
   }
   function setName(id: string, name: string) {
+    if (isToday) onBeginWorkout()
     setExercises((p) => p.map((e) => (e.id === id ? { ...e, name } : e)))
   }
   function addSet(exId: string) {
@@ -103,6 +106,7 @@ export function RecordTab({
     setExercises((p) => p.map((e) => (e.id === exId ? { ...e, sets: e.sets.filter((_, i) => i !== idx) } : e)))
   }
   function updateSet(exId: string, idx: number, field: 'reps' | 'weight', value: string) {
+    if (isToday) onBeginWorkout()
     setExercises((p) =>
       p.map((e) => (e.id === exId ? { ...e, sets: e.sets.map((s, i) => (i === idx ? { ...s, [field]: value } : s)) } : e)),
     )
@@ -118,11 +122,15 @@ export function RecordTab({
     )
     const ex = exercises.find((e) => e.id === exId)
     const set = ex?.sets[idx]
-    if (set && !set.done && isToday) restTimer.start()
+    if (set && !set.done && isToday) {
+      onBeginWorkout()
+      restTimer.start()
+    }
   }
 
   // 选历史动作：填入名字，并把上次的重量/次数整组带进来
   function applyHistory(id: string, name: string) {
+    if (isToday) onBeginWorkout()
     const last = lastSetsFor(workouts, name)
     setExercises((p) =>
       p.map((e) => (e.id === id ? { ...e, name, sets: last.length > 0 ? toDraftSets(last) : e.sets } : e)),
@@ -136,6 +144,7 @@ export function RecordTab({
 
   // 点模板：表单为空直接载入；有内容时点第二次确认覆盖
   function tapRoutine(r: Routine) {
+    if (isToday) onBeginWorkout()
     if (formDirty() && confirmLoad !== r.id) {
       setConfirmLoad(r.id)
       return

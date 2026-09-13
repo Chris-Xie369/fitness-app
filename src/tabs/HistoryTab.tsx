@@ -280,7 +280,7 @@ export function HistoryTab({
                 <div>
                   <p className="font-display text-[15px] text-ink">{formatDate(w.date)}</p>
                   <p className="text-[12px] text-muted mt-0.5">
-                    {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组
+                    {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组{w.durationSec ? ` · ${Math.round(w.durationSec / 60)} 分钟` : ''}
                   </p>
                   {w.note && <p className="text-[12px] text-ink/70 italic mt-1">“{w.note}”</p>}
                 </div>

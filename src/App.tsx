@@ -8,10 +8,10 @@ import { StatsTab } from './tabs/StatsTab'
 import { HistoryTab } from './tabs/HistoryTab'
 import { Celebration } from './components/Celebration'
 import { newlyEarned } from './lib/achievements'
+import { newlySetPRs, weekGoalJustReached, weekKey, type CelebrationItem } from './lib/feedback'
 import { deleteRoutine, upsertRoutine } from './lib/routines'
 import { restorePhotos } from './lib/photos'
 import { useRestTimer } from './hooks/useRestTimer'
-import type { Achievement } from './lib/achievements'
 import { loadMeals, loadMetrics, loadRoutines, loadSettings, loadWater, loadWorkouts, saveMeals, saveMetrics, saveRoutines, saveSettings, saveWater, saveWorkouts } from './storage'
 import type { BackupData } from './storage'
 import { todayStr } from './lib/streak'
@@ -32,7 +32,8 @@ export default function App() {
   const [metrics, setMetrics] = useState<MetricEntry[]>(() => loadMetrics())
   const [tab, setTab] = useState<Tab>('today')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
-  const [achQueue, setAchQueue] = useState<Achievement[]>([])
+  const [achQueue, setAchQueue] = useState<CelebrationItem[]>([])
+  const [workoutStart, setWorkoutStart] = useState<number | null>(null)
   const restTimer = useRestTimer(90)
   const mainRef = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -47,15 +48,45 @@ export default function App() {
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => saveMetrics(metrics), [metrics])
 
+  // 记录开始：今天第一次填表时打点，用于计算训练时长
+  function beginWorkout() {
+    setWorkoutStart((prev) => prev ?? Date.now())
+  }
+
   // 同一天再记：动作追加进当天的 workout（与体重"同日更新"语义一致），而不是新建一条
   function addWorkout(w: Workout) {
     const appended = workouts.some((x) => x.date === w.date)
+    // 训练时长：仅「今天首次新建」时记录；补记过去日不带时长。异常长（>5小时）视为挂起忽略
+    const isTodaySave = w.date === todayStr()
+    const durationSec = (isTodaySave && workoutStart) ? Math.min(18000, Math.max(30, Math.round((Date.now() - workoutStart) / 1000))) : undefined
+    const withDuration: Workout = (!appended && durationSec) ? { ...w, durationSec } : w
     const after = appended
       ? workouts.map((x) => (x.date === w.date ? { ...x, exercises: [...x.exercises, ...w.exercises], note: x.note ?? w.note } : x))
-      : [w, ...workouts].sort((x, y) => y.date.localeCompare(x.date))
-    const earned = newlyEarned(workouts, after)
+      : [withDuration, ...workouts].sort((x, y) => y.date.localeCompare(x.date))
+    const earned: CelebrationItem[] = newlyEarned(workouts, after)
+    earned.push(...newlySetPRs(workouts, after))
+    // 周目标达成：每周只庆祝一次（localStorage 记录已庆祝的周）
+    if (weekGoalJustReached(workouts, after, settings.weeklyGoalDays)) {
+      const key = weekKey()
+      let done = new Set<string>()
+      try {
+        done = new Set<string>(JSON.parse(localStorage.getItem('fitness-app:celebratedWeeks') ?? '[]'))
+      } catch {
+        done = new Set<string>()
+      }
+      if (!done.has(key)) {
+        done.add(key)
+        try {
+          localStorage.setItem('fitness-app:celebratedWeeks', JSON.stringify([...done].slice(-26)))
+        } catch {
+          /* 配额满等：庆祝仍可弹，只是不记忆 */
+        }
+        earned.push({ emoji: '🎯', title: '本周目标达成', desc: `本周练满 ${settings.weeklyGoalDays} 天` })
+      }
+    }
     setWorkouts(after)
     if (earned.length > 0) setAchQueue((q) => [...q, ...earned])
+    if (isTodaySave) setWorkoutStart(null) // 补记过去日不清空今天尚未结束的计时
     setLastAdded({ at: w.createdAt, appended, count: w.exercises.length, date: w.date })
     // 记今天跳今天页；补记过去日跳历史页（今天页看不到那条）
     setTab(w.date === todayStr() ? 'today' : 'history')
@@ -157,6 +188,7 @@ export default function App() {
           {tab === 'record' && (
             <RecordTab
               onSave={addWorkout}
+              onBeginWorkout={beginWorkout}
               workouts={workouts}
               routines={routines}
               onUpsertRoutine={handleUpsertRoutine}
