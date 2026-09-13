@@ -193,7 +193,7 @@ export function saveSettings(settings: AppSettings): void {
   }
 }
 
-export const METRIC_TYPES: MetricType[] = ['weight', 'bodyFat', 'waist']
+export const METRIC_TYPES: MetricType[] = ['weight', 'bodyFat', 'waist', 'chest', 'hips', 'upperArm', 'thigh']
 
 function isValidMetric(m: unknown): m is MetricEntry {
   if (!m || typeof m !== 'object') return false

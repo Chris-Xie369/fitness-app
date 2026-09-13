@@ -63,7 +63,7 @@ export type AppSettings = {
 }
 
 // 身体指标（通用化：体重/体脂率/腰围…同一天每种一条）
-export type MetricType = 'weight' | 'bodyFat' | 'waist'
+export type MetricType = 'weight' | 'bodyFat' | 'waist' | 'chest' | 'hips' | 'upperArm' | 'thigh'
 
 export type MetricEntry = {
   id: string

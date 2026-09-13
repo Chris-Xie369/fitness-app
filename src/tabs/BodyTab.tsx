@@ -3,11 +3,16 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import type { AppSettings, MetricEntry, MetricType } from '../types'
 import { ageFromBirthYear, bmi, bmiCategory, bmrMifflin, fatMass, leanMass, movingAverage } from '../lib/body'
 import { todayStr } from '../lib/streak'
+import { ProgressPhotos } from '../components/ProgressPhotos'
 
-const METRICS: { type: MetricType; label: string; unit: string; placeholder: string; step: string }[] = [
-  { type: 'weight', label: '体重', unit: 'kg', placeholder: '70.5', step: '0.1' },
-  { type: 'bodyFat', label: '体脂率', unit: '%', placeholder: '18', step: '0.1' },
-  { type: 'waist', label: '腰围', unit: 'cm', placeholder: '80', step: '0.1' },
+const METRICS: { type: MetricType; label: string; unit: string; placeholder: string; hint: string }[] = [
+  { type: 'weight', label: '体重', unit: 'kg', placeholder: '70.5', hint: '晨起空腹、同一台秤；单日波动多为水分，看趋势' },
+  { type: 'bodyFat', label: '体脂率', unit: '%', placeholder: '18', hint: '家用秤误差约 ±3-5%，只在同一台秤、相同条件下看趋势' },
+  { type: 'waist', label: '腰围', unit: 'cm', placeholder: '80', hint: '肚脐上方自然最细处水平一圈，正常呼气末读数' },
+  { type: 'chest', label: '胸围', unit: 'cm', placeholder: '98', hint: '男性沿乳头水平一圈，软尺背后不扭转' },
+  { type: 'hips', label: '臀围', unit: 'cm', placeholder: '92', hint: '臀部最丰满处水平一圈，双脚并拢' },
+  { type: 'upperArm', label: '上臂围', unit: 'cm', placeholder: '33', hint: '屈臂收紧时二头肌最粗处，固定同一侧' },
+  { type: 'thigh', label: '大腿围', unit: 'cm', placeholder: '55', hint: '臀褶下方大腿最粗处水平一圈，重心均分双腿' },
 ]
 
 function token(name: string, fallback: string): string {
@@ -104,7 +109,7 @@ export function BodyTab({
       <h1 className="font-display text-[28px] text-ink text-center">身体</h1>
 
       {/* 指标切换 */}
-      <div className="mt-4 flex justify-center gap-1.5">
+      <div className="mt-4 flex flex-wrap justify-center gap-1.5">
         {METRICS.map((m) => (
           <button
             key={m.type}
@@ -115,6 +120,7 @@ export function BodyTab({
           </button>
         ))}
       </div>
+      <p className="mt-2 text-center text-[11px] text-muted/80">{meta.hint}</p>
 
       {/* 录入 */}
       <div className="mt-5 flex gap-2">
@@ -223,6 +229,9 @@ export function BodyTab({
         )}
       </div>
 
+      {/* 进度照片（入口前置，避免被长列表埋住） */}
+      <ProgressPhotos />
+
       {/* 趋势 */}
       {chartData.length >= 2 && (
         <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
@@ -233,7 +242,7 @@ export function BodyTab({
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
               <CartesianGrid stroke={line} vertical={false} />
               <XAxis dataKey="x" tick={{ fontSize: 11, fill: muted }} axisLine={{ stroke: line }} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: muted }} axisLine={false} tickLine={false} domain={['dataMin - 2', 'dataMax + 2']} width={44} />
+              <YAxis tick={{ fontSize: 11, fill: muted }} axisLine={false} tickLine={false} domain={type === 'weight' ? ['dataMin - 2', 'dataMax + 2'] : ['auto', 'auto']} width={44} />
               <Tooltip content={<MetricTooltip unit={meta.unit} />} />
               {type === 'weight' && <Line type="monotone" dataKey="avg" stroke={muted} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />}
               <Line type="monotone" dataKey="value" stroke={clay} strokeWidth={2} dot={{ r: 3, fill: clay }} isAnimationActive={false} />
