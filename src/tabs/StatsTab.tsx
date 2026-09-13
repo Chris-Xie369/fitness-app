@@ -2,6 +2,8 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import type { MealEntry, Workout } from '../types'
 import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
 import { avgKcalByTraining, kcalTrend } from '../lib/diet'
+import { weeklyReport } from '../lib/weekly'
+import { estimate1RM, personalRecords } from '../lib/pr'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
 import { achievements } from '../lib/achievements'
@@ -77,6 +79,13 @@ export function StatsTab({ workouts, meals }: { workouts: Workout[]; meals: Meal
   const hasDiet = meals.length > 0
   const kcalMax = Math.max(kcal.trainAvg, kcal.restAvg, 1)
 
+  // 本周 vs 上周（一次遍历聚合每日热量）
+  const kcalByDate = new Map<string, number>()
+  for (const m of meals) kcalByDate.set(m.date, (kcalByDate.get(m.date) ?? 0) + m.kcal)
+  const report = weeklyReport(workouts, kcalByDate)
+  const prs = personalRecords(workouts, 5)
+  const weekdayName = '一二三四五六日'[report.elapsedDays - 1]
+
   return (
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">统计</h1>
@@ -86,6 +95,23 @@ export function StatsTab({ workouts, meals }: { workouts: Workout[]; meals: Meal
         <Stat value={ov.totalDays} unit="天" label="累计打卡" />
         <Stat value={ov.weekDays} unit="天" label="本周训练" />
         <Stat value={ov.totalSets} unit="组" label="累计完成" />
+      </div>
+
+      {/* 本周回顾（本周与上周同星期区间对比） */}
+      <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
+        <p className="font-display text-[13px] italic text-muted mb-3">本周回顾 · 截至周{weekdayName}，对比上周同期</p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} unit="天" />
+          <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} unit="组" />
+          <WeekCell
+            label={`日均热量${report.thisWeek.kcalDays > 0 ? `（${report.thisWeek.kcalDays} 天）` : ''}`}
+            cur={report.thisWeek.kcalDays > 0 ? report.thisWeek.avgKcal : null}
+            prev={report.lastWeek.avgKcal}
+            prevDays={report.lastWeek.kcalDays}
+            unit="kcal"
+            neutral
+          />
+        </div>
       </div>
 
       {/* 近 8 周训练量 */}
@@ -157,6 +183,24 @@ export function StatsTab({ workouts, meals }: { workouts: Workout[]; meals: Meal
         </ul>
       </div>
 
+      {/* 个人记录（历史最重一组） */}
+      {prs.length > 0 && (
+        <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
+          <p className="font-display text-[13px] italic text-muted mb-2">个人记录 · 历史最重</p>
+          <ul className="space-y-1.5">
+            {prs.map((pr) => (
+              <li key={pr.name} className="flex items-center justify-between text-[14px]">
+                <span className="text-ink">{pr.name}</span>
+                <span className="text-muted">
+                  <span className="text-clay font-medium">{pr.weight}kg</span> × {pr.reps}
+                  <span className="ml-1.5 text-[11px]">估1RM {estimate1RM({ reps: pr.reps, weight: pr.weight })}kg</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* 打卡热力：左侧星期坐标，12 列 × 周一~周日；今天用描边标出 */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
         <p className="font-display text-[13px] italic text-muted mb-3">打卡热力 · 近 12 周</p>
@@ -217,6 +261,32 @@ function Stat({ value, unit, label }: { value: number; unit: string; label: stri
         {value}<span className="text-[13px] text-muted">{unit}</span>
       </p>
       <p className="mt-1 text-[11px] text-muted">{label}</p>
+    </div>
+  )
+}
+
+
+function WeekCell({ label, cur, prev, prevDays = 0, unit, neutral = false }: {
+  label: string
+  cur: number | null
+  prev: number
+  prevDays?: number
+  unit: string
+  neutral?: boolean
+}) {
+  const arrow = cur == null ? '' : cur > prev ? ' ↑' : cur < prev ? ' ↓' : ' –'
+  const diff = (cur ?? 0) - prev
+  // 热量箭头用中性色（多吃不一定是好事）；无数据灰色
+  const tone = cur == null ? 'text-muted/50' : neutral ? 'text-muted' : diff > 0 ? 'text-clay' : diff < 0 ? 'text-muted' : 'text-muted/60'
+  return (
+    <div>
+      <p className="font-display text-[22px] leading-none text-clay">
+        {cur == null ? '—' : cur}<span className="text-[11px] text-muted">{cur == null ? '' : unit}</span>
+      </p>
+      <p className="mt-1 text-[11px] text-muted leading-tight">{label}</p>
+      <p className={`text-[10px] mt-0.5 ${tone}`}>
+        {prevDays > 0 ? `上周 ${prev}${arrow}` : cur == null ? '暂无记录' : `上周 0${arrow}`}
+      </p>
     </div>
   )
 }

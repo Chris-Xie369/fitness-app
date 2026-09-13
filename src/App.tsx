@@ -41,7 +41,7 @@ export default function App() {
   function addWorkout(w: Workout) {
     const appended = workouts.some((x) => x.date === w.date)
     const after = appended
-      ? workouts.map((x) => (x.date === w.date ? { ...x, exercises: [...x.exercises, ...w.exercises] } : x))
+      ? workouts.map((x) => (x.date === w.date ? { ...x, exercises: [...x.exercises, ...w.exercises], note: x.note ?? w.note } : x))
       : [w, ...workouts].sort((x, y) => y.date.localeCompare(x.date))
     const earned = newlyEarned(workouts, after)
     setWorkouts(after)

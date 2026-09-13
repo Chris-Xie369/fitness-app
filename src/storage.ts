@@ -29,7 +29,7 @@ export function normalizeWorkouts(workouts: Workout[]): Workout[] {
       exercises: ordered.flatMap((w) => w.exercises).map((ex) =>
         ex.id ? ex : { ...ex, id: newId() },
       ),
-      note: ordered.map((w) => w.note).find(Boolean),
+      note: ordered.map((w) => w.note).find((v) => typeof v === 'string' && v),
     })
   }
   // 最新的一天排最前（按日期而非录入时间：补记过去日时 createdAt 是"现在"，日期才是真实顺序）
@@ -177,6 +177,7 @@ function isValidWorkout(x: Record<string, unknown>): boolean {
     typeof x.id === 'string' &&
     isValidDate(x.date) &&
     isNum(x.createdAt) &&
+    (x.note === undefined || typeof x.note === 'string') &&
     Array.isArray(x.exercises) &&
     (x.exercises as unknown[]).every((e0) => {
       const e = e0 as Record<string, unknown>

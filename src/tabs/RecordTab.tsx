@@ -37,11 +37,13 @@ export function RecordTab({
   const [date, setDate] = useState(today)
   const isToday = date === today
   const alreadyOnDate = workouts.some((w) => w.date === date)
+  const existingNote = workouts.find((w) => w.date === date)?.note
   const [exercises, setExercises] = useState<DraftExercise[]>([emptyExercise()])
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [confirmLoad, setConfirmLoad] = useState<string | null>(null)
   const [savedHint, setSavedHint] = useState<string | null>(null)
+  const [note, setNote] = useState('')
 
   // 最近练过的动作：前 6 个做快捷胶囊，全部用于输入框自动补全
   const recent = recentExerciseNames(workouts, 6)
@@ -66,6 +68,7 @@ export function RecordTab({
     setConfirmLoad(null)
     setSavingTemplate(false)
     setTemplateName('')
+    setNote('')
   }
   // 函数式更新：快速连点 ‹ › 不会因闭包陈旧而丢步
   function stepDate(delta: number) {
@@ -77,6 +80,7 @@ export function RecordTab({
     setConfirmLoad(null)
     setSavingTemplate(false)
     setTemplateName('')
+    setNote('')
   }
 
   function addExercise() {
@@ -144,7 +148,7 @@ export function RecordTab({
   function handleSave() {
     const valid = buildValid()
     if (valid.length === 0) return
-    onSave({ id: uid(), date, exercises: valid, createdAt: Date.now() })
+    onSave({ id: uid(), date, exercises: valid, createdAt: Date.now(), note: note.trim() || undefined })
     setExercises([emptyExercise()]) // 重置表单
   }
 
@@ -335,9 +339,21 @@ export function RecordTab({
       </div>
       {savedHint && <p className="mt-2 text-right text-[12px] text-clay">{savedHint}</p>}
 
+      {existingNote ? (
+        <p className="mt-5 text-[12px] text-muted italic px-1">当天备注：{existingNote}（一天一条备注，追加训练不覆盖）</p>
+      ) : (
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={50}
+          placeholder="备注（可选，如：状态差 / PR 了）"
+          className="mt-5 w-full px-3 py-2.5 rounded-xl border border-line bg-surface text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+        />
+      )}
+
       <button
         onClick={handleSave}
-        className="mt-6 w-full py-3 rounded-xl bg-clay text-white font-medium hover:bg-clay/90 active:scale-[0.98] transition"
+        className="mt-3 w-full py-3 rounded-xl bg-clay text-white font-medium hover:bg-clay/90 active:scale-[0.98] transition"
       >
         {saveLabel}
       </button>
