@@ -1,10 +1,11 @@
-import type { AppSettings, BodyEntry, MealEntry, Routine, WaterEntry, Workout } from './types'
+import type { AppSettings, BodyEntry, MealEntry, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
 const MEALS_KEY = 'fitness-app:meals'
 const ROUTINES_KEY = 'fitness-app:routines'
 const WATER_KEY = 'fitness-app:water'
+const METRICS_KEY = 'fitness-app:metrics'
 const SETTINGS_KEY = 'fitness-app:settings'
 
 export const DEFAULT_SETTINGS: AppSettings = { weeklyGoalDays: 3, waterGoal: 8 }
@@ -54,25 +55,6 @@ export function saveWorkouts(workouts: Workout[]): void {
     localStorage.setItem(WORKOUTS_KEY, JSON.stringify(workouts))
   } catch {
     /* 静默失败：内存里仍可正常使用 */
-  }
-}
-
-export function loadBody(): BodyEntry[] {
-  try {
-    const raw = localStorage.getItem(BODY_KEY)
-    if (!raw) return []
-    const data: unknown = JSON.parse(raw)
-    return Array.isArray(data) ? (data as BodyEntry[]) : []
-  } catch {
-    return []
-  }
-}
-
-export function saveBody(entries: BodyEntry[]): void {
-  try {
-    localStorage.setItem(BODY_KEY, JSON.stringify(entries))
-  } catch {
-    /* 静默失败 */
   }
 }
 
@@ -194,6 +176,9 @@ export function loadSettings(): AppSettings {
     return {
       weeklyGoalDays: typeof x.weeklyGoalDays === 'number' && x.weeklyGoalDays >= 1 && x.weeklyGoalDays <= 7 ? x.weeklyGoalDays : DEFAULT_SETTINGS.weeklyGoalDays,
       waterGoal: typeof x.waterGoal === 'number' && x.waterGoal >= 1 && x.waterGoal <= 30 ? x.waterGoal : DEFAULT_SETTINGS.waterGoal,
+      heightCm: typeof x.heightCm === 'number' && x.heightCm > 0 ? x.heightCm : undefined,
+      sex: x.sex === 'male' || x.sex === 'female' ? x.sex : undefined,
+      birthYear: typeof x.birthYear === 'number' && x.birthYear >= 1900 && x.birthYear <= 2100 ? x.birthYear : undefined,
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -208,9 +193,72 @@ export function saveSettings(settings: AppSettings): void {
   }
 }
 
+export const METRIC_TYPES: MetricType[] = ['weight', 'bodyFat', 'waist']
+
+function isValidMetric(m: unknown): m is MetricEntry {
+  if (!m || typeof m !== 'object') return false
+  const x = m as Record<string, unknown>
+  return (
+    typeof x.id === 'string' &&
+    isValidDate(x.date) &&
+    METRIC_TYPES.includes(x.type as MetricType) &&
+    isNum(x.value) &&
+    x.value > 0 &&
+    x.value < 1000 &&
+    isNum(x.createdAt)
+  )
+}
+
+export function loadMetrics(): MetricEntry[] {
+  try {
+    const raw = localStorage.getItem(METRICS_KEY)
+    // key 已存在（哪怕是空数组）说明已迁移过，绝不再从旧 key 复活已删除数据
+    if (raw !== null) {
+      const data: unknown = JSON.parse(raw)
+      return Array.isArray(data) ? data.filter(isValidMetric) : []
+    }
+    // 老版本只有体重：一次性迁移到通用指标（严格校验，成功后删除旧 key）
+    const legacy = localStorage.getItem(BODY_KEY)
+    if (legacy) {
+      const old: unknown = JSON.parse(legacy)
+      if (Array.isArray(old)) {
+        const migrated: MetricEntry[] = old
+          .filter(
+            (b): b is BodyEntry =>
+              !!b &&
+              typeof b === 'object' &&
+              isValidDate((b as BodyEntry).date) &&
+              isNum((b as BodyEntry).weightKg) &&
+              (b as BodyEntry).weightKg > 0 &&
+              (b as BodyEntry).weightKg < 1000,
+          )
+          .map((b) => ({ id: b.id, date: b.date, type: 'weight' as const, value: b.weightKg, createdAt: 0 }))
+        localStorage.setItem(METRICS_KEY, JSON.stringify(migrated))
+        try {
+          localStorage.removeItem(BODY_KEY)
+        } catch {
+          /* 旧 key 删除失败不影响使用 */
+        }
+        return migrated
+      }
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
+export function saveMetrics(metrics: MetricEntry[]): void {
+  try {
+    localStorage.setItem(METRICS_KEY, JSON.stringify(metrics))
+  } catch {
+    /* 静默失败 */
+  }
+}
+
 // ===== 备份导出 / 导入 =====
 
-export type BackupData = { workouts: Workout[]; body: BodyEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; settings?: AppSettings }
+export type BackupData = { workouts: Workout[]; body?: BodyEntry[]; metrics: MetricEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; settings?: AppSettings }
 
 function isNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
@@ -272,6 +320,10 @@ export function parseBackup(text: string): BackupData | null {
   const body = (pick('body', isValidBodyEntry) as unknown as BodyEntry[])
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((e) => ({ ...e, id: restoreId() }))
+  // 新备份用 metrics；旧备份的体重映射进来（同日有 weight 指标时以新指标为准）
+  const metricsFromBody: MetricEntry[] = body.map((b) => ({ id: restoreId(), date: b.date, type: 'weight' as const, value: b.weightKg, createdAt: 0 }))
+  const metricsNew = (pick('metrics', isValidMetric) as unknown as MetricEntry[]).map((m) => ({ ...m, id: restoreId() }))
+  const metrics = [...metricsFromBody.filter((m) => !metricsNew.some((n) => n.date === m.date && n.type === m.type)), ...metricsNew]
   const meals = (pick('meals', (x) => isValidMeal(x)) as unknown as MealEntry[]).map((m) => ({ ...m, id: restoreId() }))
   const routines = pick('routines', isValidRoutine) as unknown as Routine[]
   const water = pick('water', isValidWater) as unknown as WaterEntry[]
@@ -280,11 +332,24 @@ export function parseBackup(text: string): BackupData | null {
     ? {
         weeklyGoalDays: typeof rawSettings.weeklyGoalDays === 'number' && rawSettings.weeklyGoalDays >= 1 && rawSettings.weeklyGoalDays <= 7 ? rawSettings.weeklyGoalDays : DEFAULT_SETTINGS.weeklyGoalDays,
         waterGoal: typeof rawSettings.waterGoal === 'number' && rawSettings.waterGoal >= 1 && rawSettings.waterGoal <= 30 ? rawSettings.waterGoal : DEFAULT_SETTINGS.waterGoal,
+        heightCm: typeof rawSettings.heightCm === 'number' && rawSettings.heightCm > 0 ? rawSettings.heightCm : undefined,
+        sex: rawSettings.sex === 'male' || rawSettings.sex === 'female' ? rawSettings.sex : undefined,
+        birthYear: typeof rawSettings.birthYear === 'number' && rawSettings.birthYear >= 1900 && rawSettings.birthYear <= 2100 ? rawSettings.birthYear : undefined,
       }
     : undefined
 
-  if (workouts.length === 0 && body.length === 0 && meals.length === 0 && routines.length === 0 && water.length === 0) return null
-  return { workouts, body, meals, routines, water, settings }
+  const hasProfile = !!settings && (settings.heightCm != null || settings.sex != null || settings.birthYear != null)
+  if (
+    workouts.length === 0 &&
+    body.length === 0 &&
+    metrics.length === 0 &&
+    meals.length === 0 &&
+    routines.length === 0 &&
+    water.length === 0 &&
+    !hasProfile
+  )
+    return null
+  return { workouts, body: [], metrics, meals, routines, water, settings }
 }
 
 const HINT_KEY = 'fitness-app:backupHint'
@@ -333,7 +398,8 @@ export function exportBackup(): string {
       version: 1,
       exportedAt: new Date().toISOString(),
       workouts: loadWorkouts(),
-      body: loadBody(),
+      body: [],
+      metrics: loadMetrics(),
       meals: loadMeals(),
       routines: loadRoutines(),
       water: loadWater(),

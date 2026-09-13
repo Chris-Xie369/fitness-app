@@ -120,7 +120,7 @@ export function HistoryTab({
   function confirmImport() {
     if (!pending) return
     onImport(pending)
-    setMsg(`导入成功：${pending.workouts.length} 天训练 · ${pending.body.length} 条体重 · ${pending.meals.length} 条饮食 · ${pending.routines.length} 个模板`)
+    setMsg(`导入成功：${pending.workouts.length} 天训练 · ${(pending.metrics?.length ?? 0)} 条身体记录 · ${pending.meals.length} 条饮食 · ${pending.routines.length} 个模板`)
     setPending(null)
     setEditingId(null)
     setEditError(false)
@@ -354,7 +354,7 @@ export function HistoryTab({
         {pending && (
           <div className="mt-3 rounded-xl bg-paper border border-clay/30 p-3 text-[12px]">
             <p className="text-ink">
-              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {pending.body.length} 条体重 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水
+              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水
             </p>
             <div className="mt-2 flex gap-2">
               <button onClick={confirmImport} className="px-3 py-1.5 rounded-lg bg-clay text-white">确认导入</button>

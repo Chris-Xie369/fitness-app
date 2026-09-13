@@ -53,8 +53,22 @@ export type WaterEntry = {
   updatedAt: number
 }
 
-// 应用设置
+// 应用设置（profile 字段用于派生 BMI/BMR，可选）
 export type AppSettings = {
   weeklyGoalDays: number
   waterGoal: number
+  heightCm?: number
+  sex?: 'male' | 'female'
+  birthYear?: number
+}
+
+// 身体指标（通用化：体重/体脂率/腰围…同一天每种一条）
+export type MetricType = 'weight' | 'bodyFat' | 'waist'
+
+export type MetricEntry = {
+  id: string
+  date: string
+  type: MetricType
+  value: number
+  createdAt: number
 }
