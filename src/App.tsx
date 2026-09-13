@@ -9,11 +9,15 @@ import { HistoryTab } from './tabs/HistoryTab'
 import { Celebration } from './components/Celebration'
 import { newlyEarned } from './lib/achievements'
 import { deleteRoutine, upsertRoutine } from './lib/routines'
+import { useRestTimer } from './hooks/useRestTimer'
 import type { Achievement } from './lib/achievements'
-import { loadBody, loadMeals, loadRoutines, loadWorkouts, saveBody, saveMeals, saveRoutines, saveWorkouts } from './storage'
+import { loadBody, loadMeals, loadRoutines, loadSettings, loadWater, loadWorkouts, saveBody, saveMeals, saveRoutines, saveSettings, saveWater, saveWorkouts } from './storage'
 import type { BackupData } from './storage'
 import { todayStr } from './lib/streak'
-import type { BodyEntry, MealEntry, Routine, Workout } from './types'
+import type { AppSettings, BodyEntry, MealEntry, Routine, WaterEntry, Workout } from './types'
+
+const uid = (): string =>
+  globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
 type Tab = 'today' | 'record' | 'diet' | 'body' | 'stats' | 'history'
 type LastAdded = { at: number; appended: boolean; count: number; date: string }
@@ -22,10 +26,13 @@ export default function App() {
   const [workouts, setWorkouts] = useState<Workout[]>(() => loadWorkouts())
   const [meals, setMeals] = useState<MealEntry[]>(() => loadMeals())
   const [routines, setRoutines] = useState<Routine[]>(() => loadRoutines())
+  const [water, setWater] = useState<WaterEntry[]>(() => loadWater())
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [body, setBody] = useState<BodyEntry[]>(() => loadBody())
   const [tab, setTab] = useState<Tab>('today')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
   const [achQueue, setAchQueue] = useState<Achievement[]>([])
+  const restTimer = useRestTimer(90)
   const mainRef = useRef<HTMLElement>(null)
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 })
@@ -35,6 +42,8 @@ export default function App() {
   useEffect(() => saveWorkouts(workouts), [workouts])
   useEffect(() => saveMeals(meals), [meals])
   useEffect(() => saveRoutines(routines), [routines])
+  useEffect(() => saveWater(water), [water])
+  useEffect(() => saveSettings(settings), [settings])
   useEffect(() => saveBody(body), [body])
 
   // 同一天再记：动作追加进当天的 workout（与体重"同日更新"语义一致），而不是新建一条
@@ -81,6 +90,25 @@ export default function App() {
   function handleDeleteRoutine(id: string) {
     setRoutines((prev) => deleteRoutine(prev, id))
   }
+  function changeWater(date: string, delta: number) {
+    setWater((prev) => {
+      const existing = prev.find((w) => w.date === date)
+      const glasses = Math.max(0, Math.min(30, (existing?.glasses ?? 0) + delta))
+      const row: WaterEntry = { id: existing?.id ?? uid(), date, glasses, updatedAt: Date.now() }
+      return [row, ...prev.filter((w) => w.date !== date)]
+    })
+  }
+  function updateSettings(patch: Partial<AppSettings>) {
+    setSettings((prev) => ({ ...prev, ...patch }))
+  }
+  // 把某天的饮食复制到另一天（新 id）
+  function copyMealsDay(srcDate: string, targetDate: string) {
+    setMeals((prev) => {
+      const clones = prev.filter((m) => m.date === srcDate).map((m) => ({ ...m, id: uid(), date: targetDate, createdAt: Date.now() }))
+      // 覆盖目标日原有饮食（确认态已提示）
+      return [...clones, ...prev.filter((m) => m.date !== targetDate)]
+    })
+  }
   function deleteMeal(id: string) {
     setMeals((prev) => prev.filter((m) => m.id !== id))
   }
@@ -100,6 +128,8 @@ export default function App() {
     setBody(data.body)
     setMeals(data.meals)
     setRoutines(data.routines)
+    setWater(data.water ?? [])
+    if (data.settings) setSettings(data.settings) // 老备份无 settings 时保留当前设置
   }
 
   return (
@@ -122,11 +152,12 @@ export default function App() {
               routines={routines}
               onUpsertRoutine={handleUpsertRoutine}
               onDeleteRoutine={handleDeleteRoutine}
+              restTimer={restTimer}
             />
           )}
-          {tab === 'diet' && <DietTab meals={meals} onAdd={addMeal} onDelete={deleteMeal} />}
+          {tab === 'diet' && <DietTab meals={meals} water={water} settings={settings} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />}
           {tab === 'body' && <BodyTab body={body} onSave={addOrUpdateBody} onDelete={deleteBody} />}
-          {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} />}
+          {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} settings={settings} onUpdateSettings={updateSettings} />}
           {tab === 'history' && (
             <HistoryTab workouts={workouts} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
           )}

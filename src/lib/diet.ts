@@ -62,3 +62,13 @@ export function avgKcalByTraining(
     restDays: restN,
   }
 }
+
+// 最近吃过的食物（按名去重，最近优先），用于快捷录入
+export function recentMeals(meals: MealEntry[], limit = 6): { name: string; kcal: number }[] {
+  const names: { name: string; kcal: number }[] = []
+  for (const m of [...meals].sort((a, b) => b.createdAt - a.createdAt)) {
+    const name = m.name.trim()
+    if (name && !names.some((x) => x.name === name)) names.push({ name, kcal: m.kcal })
+  }
+  return names.slice(0, limit)
+}

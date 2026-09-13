@@ -3,21 +3,23 @@ import type { Exercise, Routine, SetEntry, Workout } from '../types'
 import { todayStr } from '../lib/streak'
 import { dayLabel, shiftDate } from '../lib/date'
 import { formatSets, lastSetsFor, recentExerciseNames } from '../lib/exercises'
+import { estimate1RM } from '../lib/pr'
+import type { RestTimerApi } from '../hooks/useRestTimer'
 import { validExercises } from '../lib/routines'
 
 // 表单里的"一组"用字符串（input 的 value 一律是字符串），保存时再转成数字
-type DraftSet = { reps: string; weight: string }
+type DraftSet = { reps: string; weight: string; done: boolean }
 type DraftExercise = { id: string; name: string; sets: DraftSet[] }
 
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
 function emptyExercise(): DraftExercise {
-  return { id: uid(), name: '', sets: [{ reps: '', weight: '' }] }
+  return { id: uid(), name: '', sets: [{ reps: '', weight: '', done: false }] }
 }
 
 // 把历史组数据转成表单草稿（重量可能为空）
 function toDraftSets(sets: SetEntry[]): DraftSet[] {
-  return sets.map((s) => ({ reps: String(s.reps), weight: s.weight != null ? String(s.weight) : '' }))
+  return sets.map((s) => ({ reps: String(s.reps), weight: s.weight != null ? String(s.weight) : '' , done: false }))
 }
 
 export function RecordTab({
@@ -26,12 +28,14 @@ export function RecordTab({
   routines,
   onUpsertRoutine,
   onDeleteRoutine,
+  restTimer,
 }: {
   onSave: (w: Workout) => void
   workouts: Workout[]
   routines: Routine[]
   onUpsertRoutine: (name: string, exercises: { name: string; sets: SetEntry[] }[]) => void
   onDeleteRoutine: (id: string) => void
+  restTimer: RestTimerApi
 }) {
   const today = todayStr()
   const [date, setDate] = useState(today)
@@ -93,7 +97,7 @@ export function RecordTab({
     setExercises((p) => p.map((e) => (e.id === id ? { ...e, name } : e)))
   }
   function addSet(exId: string) {
-    setExercises((p) => p.map((e) => (e.id === exId ? { ...e, sets: [...e.sets, { reps: '', weight: '' }] } : e)))
+    setExercises((p) => p.map((e) => (e.id === exId ? { ...e, sets: [...e.sets, { reps: '', weight: '', done: false }] } : e)))
   }
   function removeSet(exId: string, idx: number) {
     setExercises((p) => p.map((e) => (e.id === exId ? { ...e, sets: e.sets.filter((_, i) => i !== idx) } : e)))
@@ -103,6 +107,20 @@ export function RecordTab({
       p.map((e) => (e.id === exId ? { ...e, sets: e.sets.map((s, i) => (i === idx ? { ...s, [field]: value } : s)) } : e)),
     )
   }
+  // 勾选完成一组：标记本组并启动休息计时
+  function toggleSetDone(exId: string, idx: number) {
+    setExercises((p) =>
+      p.map((e) =>
+        e.id === exId
+          ? { ...e, sets: e.sets.map((s, i) => (i === idx ? { ...s, done: !s.done } : s)) }
+          : e,
+      ),
+    )
+    const ex = exercises.find((e) => e.id === exId)
+    const set = ex?.sets[idx]
+    if (set && !set.done && isToday) restTimer.start()
+  }
+
   // 选历史动作：填入名字，并把上次的重量/次数整组带进来
   function applyHistory(id: string, name: string) {
     const last = lastSetsFor(workouts, name)
@@ -209,6 +227,27 @@ export function RecordTab({
       )}
       <p className="text-[13px] text-muted mt-2 text-center">{subtitle}</p>
 
+      {/* 组间休息计时 */}
+      {restTimer.remaining !== null ? (
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <button onClick={() => restTimer.addSecs(-15)} className="h-8 w-8 rounded-full border border-line text-muted text-sm hover:text-clay">-15s</button>
+          <span className="font-display text-[22px] text-clay min-w-[64px] text-center tabular-nums">
+            {restTimer.mmss(restTimer.remaining)}
+          </span>
+          <button onClick={() => restTimer.addSecs(15)} className="h-8 w-8 rounded-full border border-line text-muted text-sm hover:text-clay">+15s</button>
+          <button onClick={restTimer.skip} className="ml-1 text-[12px] text-muted/60 hover:text-clay">跳过</button>
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center justify-center gap-1.5">
+          <span className="text-[11px] text-muted/70 mr-0.5">⏱ 休息</span>
+          {[60, 90, 120, 180].map((sec) => (
+            <button key={sec} onClick={() => restTimer.start(sec)} className="px-2 py-0.5 rounded-full border border-line text-[11px] text-muted hover:border-clay/50 hover:text-clay">
+              {sec}s
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 训练模板 */}
       {routines.length > 0 && (
         <div className="mt-4">
@@ -282,28 +321,41 @@ export function RecordTab({
               )}
 
               <div className="mt-3 space-y-2">
-                {ex.sets.map((s, sIdx) => (
-                  <div key={sIdx} className="flex items-center gap-2">
-                    <span className="text-[13px] text-muted w-10 shrink-0">第{sIdx + 1}组</span>
+                {ex.sets.map((s, sIdx) => {
+                  const repsN = Number(s.reps)
+                  const weightN = Number(s.weight)
+                  const has1RM = s.reps && s.weight && repsN > 0 && weightN > 0
+                  return (
+                  <div key={sIdx} className={`flex items-center gap-2 ${s.done ? 'opacity-55' : ''}`}>
+                    <button
+                      onClick={() => toggleSetDone(ex.id, sIdx)}
+                      aria-label={`完成第 ${sIdx + 1} 组`}
+                      className={`h-6 w-6 shrink-0 rounded-full border text-[12px] transition ${s.done ? 'bg-clay border-clay text-white' : 'border-line text-transparent hover:border-clay'}`}
+                    >
+                      ✓
+                    </button>
+                    <span className={`text-[13px] w-8 shrink-0 ${s.done ? 'text-clay line-through' : 'text-muted'}`}>{sIdx + 1}</span>
                     <input
                       value={s.reps}
                       onChange={(e) => updateSet(ex.id, sIdx, 'reps', e.target.value)}
                       inputMode="numeric"
                       placeholder="次数"
-                      className="w-20 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                      className="w-16 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                     />
                     <input
                       value={s.weight}
                       onChange={(e) => updateSet(ex.id, sIdx, 'weight', e.target.value)}
                       inputMode="decimal"
-                      placeholder="kg(可选)"
-                      className="w-24 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                      placeholder="kg"
+                      className="w-16 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                     />
+                    {has1RM && <span className="text-[10px] text-muted w-12 shrink-0">1RM {estimate1RM({ reps: repsN, weight: weightN })}</span>}
                     {ex.sets.length > 1 && (
                       <button onClick={() => removeSet(ex.id, sIdx)} className="text-muted/50 hover:text-clay text-sm">✕</button>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               <button onClick={() => addSet(ex.id)} className="mt-2 text-[13px] text-clay hover:underline">+ 加一组</button>

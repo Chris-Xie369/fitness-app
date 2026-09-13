@@ -4,6 +4,7 @@ import { mondayOf } from './stats'
 export type WeekSummary = {
   trainDays: number
   totalSets: number
+  tonnage: number
   avgKcal: number
   kcalDays: number
 }
@@ -25,9 +26,15 @@ export function summarizeWeek(
     dates.add(dateKey(d))
   }
   let totalSets = 0
+  let tonnage = 0
   for (const w of workouts) {
     if (dates.has(w.date)) {
       totalSets += w.exercises.reduce((n, ex) => n + ex.sets.length, 0)
+      for (const ex of w.exercises) {
+        for (const set of ex.sets) {
+          if (set.weight != null && set.weight > 0) tonnage += set.weight * set.reps
+        }
+      }
     }
   }
   const trainDays = workouts.filter((w) => dates.has(w.date)).length
@@ -37,7 +44,7 @@ export function summarizeWeek(
     const k = kcalByDate.get(date) ?? 0
     if (k > 0) { kcalSum += k; kcalDays++ }
   }
-  return { trainDays, totalSets, avgKcal: kcalDays ? Math.round(kcalSum / kcalDays) : 0, kcalDays }
+  return { trainDays, totalSets, tonnage: Math.round(tonnage), avgKcal: kcalDays ? Math.round(kcalSum / kcalDays) : 0, kcalDays }
 }
 
 export type WeeklyReport = {

@@ -1,9 +1,13 @@
-import type { BodyEntry, MealEntry, Routine, Workout } from './types'
+import type { AppSettings, BodyEntry, MealEntry, Routine, WaterEntry, Workout } from './types'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
 const MEALS_KEY = 'fitness-app:meals'
 const ROUTINES_KEY = 'fitness-app:routines'
+const WATER_KEY = 'fitness-app:water'
+const SETTINGS_KEY = 'fitness-app:settings'
+
+export const DEFAULT_SETTINGS: AppSettings = { weeklyGoalDays: 3, waterGoal: 8 }
 
 const newId = (): string =>
   globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
@@ -152,9 +156,61 @@ function isValidRoutine(r: unknown): r is Routine {
   )
 }
 
+export function loadWater(): WaterEntry[] {
+  try {
+    const raw = localStorage.getItem(WATER_KEY)
+    if (!raw) return []
+    const data: unknown = JSON.parse(raw)
+    return Array.isArray(data) ? data.filter(isValidWater) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveWater(water: WaterEntry[]): void {
+  try {
+    localStorage.setItem(WATER_KEY, JSON.stringify(water))
+  } catch {
+    /* 静默失败 */
+  }
+}
+
+function isValidWater(w: unknown): w is WaterEntry {
+  if (!w || typeof w !== 'object') return false
+  const x = w as Record<string, unknown>
+  return (
+    typeof x.id === 'string' &&
+    isValidDate(x.date) &&
+    isNum(x.glasses) && Number.isInteger(x.glasses) && x.glasses >= 0 && x.glasses <= 30 &&
+    isNum(x.updatedAt)
+  )
+}
+
+export function loadSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (!raw) return { ...DEFAULT_SETTINGS }
+    const x = JSON.parse(raw) as Record<string, unknown>
+    return {
+      weeklyGoalDays: typeof x.weeklyGoalDays === 'number' && x.weeklyGoalDays >= 1 && x.weeklyGoalDays <= 7 ? x.weeklyGoalDays : DEFAULT_SETTINGS.weeklyGoalDays,
+      waterGoal: typeof x.waterGoal === 'number' && x.waterGoal >= 1 && x.waterGoal <= 30 ? x.waterGoal : DEFAULT_SETTINGS.waterGoal,
+    }
+  } catch {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
+export function saveSettings(settings: AppSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  } catch {
+    /* 静默失败 */
+  }
+}
+
 // ===== 备份导出 / 导入 =====
 
-export type BackupData = { workouts: Workout[]; body: BodyEntry[]; meals: MealEntry[]; routines: Routine[] }
+export type BackupData = { workouts: Workout[]; body: BodyEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; settings?: AppSettings }
 
 function isNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
@@ -218,9 +274,17 @@ export function parseBackup(text: string): BackupData | null {
     .map((e) => ({ ...e, id: restoreId() }))
   const meals = (pick('meals', (x) => isValidMeal(x)) as unknown as MealEntry[]).map((m) => ({ ...m, id: restoreId() }))
   const routines = pick('routines', isValidRoutine) as unknown as Routine[]
+  const water = pick('water', isValidWater) as unknown as WaterEntry[]
+  const rawSettings = (obj.settings ?? null) as Record<string, unknown> | null
+  const settings: AppSettings | undefined = rawSettings
+    ? {
+        weeklyGoalDays: typeof rawSettings.weeklyGoalDays === 'number' && rawSettings.weeklyGoalDays >= 1 && rawSettings.weeklyGoalDays <= 7 ? rawSettings.weeklyGoalDays : DEFAULT_SETTINGS.weeklyGoalDays,
+        waterGoal: typeof rawSettings.waterGoal === 'number' && rawSettings.waterGoal >= 1 && rawSettings.waterGoal <= 30 ? rawSettings.waterGoal : DEFAULT_SETTINGS.waterGoal,
+      }
+    : undefined
 
-  if (workouts.length === 0 && body.length === 0 && meals.length === 0 && routines.length === 0) return null
-  return { workouts, body, meals, routines }
+  if (workouts.length === 0 && body.length === 0 && meals.length === 0 && routines.length === 0 && water.length === 0) return null
+  return { workouts, body, meals, routines, water, settings }
 }
 
 const HINT_KEY = 'fitness-app:backupHint'
@@ -272,6 +336,8 @@ export function exportBackup(): string {
       body: loadBody(),
       meals: loadMeals(),
       routines: loadRoutines(),
+      water: loadWater(),
+      settings: loadSettings(),
     },
     null,
     2,

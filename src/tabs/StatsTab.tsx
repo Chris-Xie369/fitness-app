@@ -1,8 +1,11 @@
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useState } from 'react'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { MealEntry, Workout } from '../types'
 import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
 import { avgKcalByTraining, kcalTrend } from '../lib/diet'
 import { weeklyReport } from '../lib/weekly'
+import { ringGeometry } from '../lib/goals'
+import { exerciseProgress } from '../lib/progress'
 import { estimate1RM, personalRecords } from '../lib/pr'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
@@ -47,7 +50,18 @@ function heatColor(sets: number, clay: string, line: string): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-export function StatsTab({ workouts, meals }: { workouts: Workout[]; meals: MealEntry[] }) {
+export function StatsTab({
+  workouts,
+  meals,
+  settings,
+  onUpdateSettings,
+}: {
+  workouts: Workout[]
+  meals: MealEntry[]
+  settings: { weeklyGoalDays: number; waterGoal: number }
+  onUpdateSettings: (patch: Partial<{ weeklyGoalDays: number; waterGoal: number }>) => void
+}) {
+  const [selected, setSelected] = useState<string | null>(null)
   const clay = token('--color-clay', '#B8553A')
   const muted = token('--color-muted', '#8C8275')
   const line = token('--color-line', '#E2DBCD')
@@ -86,6 +100,49 @@ export function StatsTab({ workouts, meals }: { workouts: Workout[]; meals: Meal
   const prs = personalRecords(workouts, 5)
   const weekdayName = '一二三四五六日'[report.elapsedDays - 1]
 
+  if (selected) {
+    const points = exerciseProgress(workouts, selected).map((p) => ({
+      ...p,
+      x: `${Number(p.date.slice(5, 7))}/${Number(p.date.slice(8, 10))}`,
+    }))
+    const best = points.reduce<{ e1rm: number; date: string } | null>((m, p) => (!m || p.e1rm > m.e1rm ? { e1rm: p.e1rm, date: p.date } : m), null)
+    return (
+      <div className="px-7 pt-16 pb-10">
+        <button onClick={() => setSelected(null)} className="text-[15px] text-muted hover:text-clay transition">‹ 返回统计</button>
+        <h1 className="font-display text-[24px] text-ink text-center -mt-6">{selected}</h1>
+        <p className="text-center text-[12px] text-muted mt-1">估算 1RM 进步曲线（Epley）</p>
+        {points.length > 0 ? (
+          <>
+            <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={points} margin={{ top: 8, right: 12, bottom: 0, left: -24 }}>
+                  <CartesianGrid stroke={line} vertical={false} />
+                  <XAxis dataKey="x" tick={{ fontSize: 10, fill: muted }} axisLine={{ stroke: line }} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: muted }} axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} />
+                  <Tooltip content={<ProgressTooltip />} />
+                  <Line type="monotone" dataKey="e1rm" stroke={clay} strokeWidth={2} isAnimationActive={false} dot={{ r: 3, fill: clay }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
+              <p className="font-display text-[13px] italic text-muted mb-2">历史最佳 1RM：<span className="text-clay not-italic">{best?.e1rm}kg</span></p>
+              <ul className="space-y-1">
+                {[...points].reverse().slice(0, 8).map((p) => (
+                  <li key={p.date} className="flex justify-between text-[13px] text-ink">
+                    <span className="text-muted">{p.x}</span>
+                    <span>{p.weight}kg × {p.reps} · 1RM {p.e1rm}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        ) : (
+          <p className="mt-12 text-center text-[14px] text-muted">这个动作还没有负重记录。</p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">统计</h1>
@@ -99,10 +156,24 @@ export function StatsTab({ workouts, meals }: { workouts: Workout[]; meals: Meal
 
       {/* 本周回顾（本周与上周同星期区间对比） */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-        <p className="font-display text-[13px] italic text-muted mb-3">本周回顾 · 截至周{weekdayName}，对比上周同期</p>
-        <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-display text-[13px] italic text-muted">本周回顾 · 截至周{weekdayName}</p>
+          <div className="flex items-center gap-2">
+            <GoalRing value={report.thisWeek.trainDays} goal={settings.weeklyGoalDays} />
+            <div className="text-right">
+              <p className="text-[11px] text-muted leading-tight">周目标</p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => onUpdateSettings({ weeklyGoalDays: Math.max(1, settings.weeklyGoalDays - 1) })} className="w-5 h-5 rounded-full border border-line text-muted text-xs leading-none hover:text-clay">－</button>
+                <span className="text-[12px] text-ink w-8 text-center tabular-nums">{settings.weeklyGoalDays} 天</span>
+                <button onClick={() => onUpdateSettings({ weeklyGoalDays: Math.min(7, settings.weeklyGoalDays + 1) })} className="w-5 h-5 rounded-full border border-line text-muted text-xs leading-none hover:text-clay">＋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-1.5 text-center">
           <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} unit="天" />
           <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} unit="组" />
+          <WeekCell label="总容量" cur={report.thisWeek.tonnage} prev={report.lastWeek.tonnage} unit="kg" compact />
           <WeekCell
             label={`日均热量${report.thisWeek.kcalDays > 0 ? `（${report.thisWeek.kcalDays} 天）` : ''}`}
             cur={report.thisWeek.kcalDays > 0 ? report.thisWeek.avgKcal : null}
@@ -189,12 +260,14 @@ export function StatsTab({ workouts, meals }: { workouts: Workout[]; meals: Meal
           <p className="font-display text-[13px] italic text-muted mb-2">个人记录 · 历史最重</p>
           <ul className="space-y-1.5">
             {prs.map((pr) => (
-              <li key={pr.name} className="flex items-center justify-between text-[14px]">
-                <span className="text-ink">{pr.name}</span>
-                <span className="text-muted">
-                  <span className="text-clay font-medium">{pr.weight}kg</span> × {pr.reps}
-                  <span className="ml-1.5 text-[11px]">估1RM {estimate1RM({ reps: pr.reps, weight: pr.weight })}kg</span>
-                </span>
+              <li key={pr.name}>
+                <button onClick={() => setSelected(pr.name)} className="w-full flex items-center justify-between text-[14px] hover:opacity-70 transition">
+                  <span className="text-ink">{pr.name} <span className="text-[11px] text-muted">进步曲线 ›</span></span>
+                  <span className="text-muted">
+                    <span className="text-clay font-medium">{pr.weight}kg</span> × {pr.reps}
+                    <span className="ml-1.5 text-[11px]">估1RM {estimate1RM({ reps: pr.reps, weight: pr.weight })}kg</span>
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -266,14 +339,16 @@ function Stat({ value, unit, label }: { value: number; unit: string; label: stri
 }
 
 
-function WeekCell({ label, cur, prev, prevDays = 0, unit, neutral = false }: {
+function WeekCell({ label, cur, prev, prevDays = 0, unit, neutral = false, compact = false }: {
   label: string
   cur: number | null
   prev: number
   prevDays?: number
   unit: string
   neutral?: boolean
+  compact?: boolean
 }) {
+  const fmt = (n: number) => (compact && n >= 10000 ? `${(n / 10000).toFixed(1)}万` : `${n}`)
   const arrow = cur == null ? '' : cur > prev ? ' ↑' : cur < prev ? ' ↓' : ' –'
   const diff = (cur ?? 0) - prev
   // 热量箭头用中性色（多吃不一定是好事）；无数据灰色
@@ -281,12 +356,43 @@ function WeekCell({ label, cur, prev, prevDays = 0, unit, neutral = false }: {
   return (
     <div>
       <p className="font-display text-[22px] leading-none text-clay">
-        {cur == null ? '—' : cur}<span className="text-[11px] text-muted">{cur == null ? '' : unit}</span>
+        {cur == null ? '—' : fmt(cur)}<span className="text-[11px] text-muted">{cur == null ? '' : unit}</span>
       </p>
       <p className="mt-1 text-[11px] text-muted leading-tight">{label}</p>
       <p className={`text-[10px] mt-0.5 ${tone}`}>
-        {prevDays > 0 ? `上周 ${prev}${arrow}` : cur == null ? '暂无记录' : `上周 0${arrow}`}
+        {cur == null && prevDays === 0 ? '暂无记录' : `上周 ${fmt(prev)}${arrow}`}
       </p>
     </div>
+  )
+}
+
+
+function ProgressTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { x: string; weight: number; reps: number; e1rm: number } }> }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0].payload
+  return (
+    <div className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[12px] text-ink shadow">
+      {p.x} · {p.weight}kg×{p.reps} · 1RM {p.e1rm}
+    </div>
+  )
+}
+
+
+function GoalRing({ value, goal }: { value: number; goal: number }) {
+  const { circumference, offset } = ringGeometry(value / goal)
+  const done = value >= goal
+  return (
+    <svg width="38" height="38" viewBox="0 0 38 38" className="-rotate-90">
+      <circle cx="19" cy="19" r="15" fill="none" stroke="var(--color-line)" strokeWidth="3.5" />
+      <circle
+        cx="19" cy="19" r="15" fill="none"
+        stroke={done ? 'var(--color-clay)' : 'var(--color-ink)'}
+        strokeWidth="3.5" strokeLinecap="round"
+        strokeDasharray={circumference} strokeDashoffset={offset}
+      />
+      <text x="19" y="19" transform="rotate(90 19 19)" textAnchor="middle" dominantBaseline="central" fontSize="10" fill="var(--color-ink)">
+        {value}/{goal}
+      </text>
+    </svg>
   )
 }

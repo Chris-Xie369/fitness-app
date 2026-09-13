@@ -41,6 +41,9 @@ export function HistoryTab({
   const [pending, setPending] = useState<BackupData | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [flashDate, setFlashDate] = useState<string | null>(null)
+  const [view, setView] = useState<'list' | 'calendar'>('list')
+  const [monthCursor, setMonthCursor] = useState(() => new Date())
+  const [pickedDate, setPickedDate] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftSets, setDraftSets] = useState<{ reps: string; weight: string }[]>([])
   const [editError, setEditError] = useState(false)
@@ -156,14 +159,94 @@ export function HistoryTab({
     setEditingId(null)
   }
 
+  // 月历数据
+  const trainedDates = new Set(workouts.map((w) => w.date))
+  const calYear = monthCursor.getFullYear()
+  const calMonth = monthCursor.getMonth()
+  const firstWeekday = new Date(calYear, calMonth, 1).getDay()
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate()
+  const calCells: (string | null)[] = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => {
+      const d = i + 1
+      return `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    }),
+  ]
+  const todayDate = todayStamp()
+  const pickedWorkout = pickedDate ? workouts.find((w) => w.date === pickedDate) : null
+
   return (
     <div className="relative px-7 pt-16 pb-10">
       <button onClick={onBack} className="absolute left-6 top-[54px] text-[15px] text-muted hover:text-clay transition">‹ 返回</button>
       <h1 className="font-display text-[28px] text-ink text-center">历史</h1>
 
-      {workouts.length === 0 ? (
+      <div className="mt-2 flex justify-center gap-1.5">
+        <button onClick={() => setView('list')} className={`px-3 py-1 rounded-full text-[12px] border transition ${view === 'list' ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>列表</button>
+        <button onClick={() => setView('calendar')} className={`px-3 py-1 rounded-full text-[12px] border transition ${view === 'calendar' ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>月历</button>
+      </div>
+
+      {view === 'calendar' && (
+        <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setMonthCursor(new Date(calYear, calMonth - 1, 1))}
+              className="h-7 w-7 rounded-full border border-line text-muted hover:text-clay"
+            >‹</button>
+            <p className="font-display text-[15px] text-ink">{calYear} 年 {calMonth + 1} 月</p>
+            <button
+              onClick={() => setMonthCursor(new Date(calYear, calMonth + 1, 1))}
+              className="h-7 w-7 rounded-full border border-line text-muted hover:text-clay"
+            >›</button>
+          </div>
+          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] text-muted">
+            {'日一二三四五六'.split('').map((d) => <span key={d}>{d}</span>)}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {calCells.map((date, i) =>
+              date ? (
+                <button
+                  key={i}
+                  onClick={() => setPickedDate(date)}
+                  className={`aspect-square rounded-lg text-[12px] flex flex-col items-center justify-center transition
+                    ${pickedDate === date ? 'bg-clay text-white' : trainedDates.has(date) ? 'bg-clay/10 text-ink' : 'text-muted/60 hover:bg-paper'}
+                    ${date === todayDate ? 'ring-1 ring-clay/50' : ''}`}
+                >
+                  {Number(date.slice(8, 10))}
+                  {trainedDates.has(date) && <span className={`text-[7px] leading-none ${pickedDate === date ? 'text-white' : 'text-clay'}`}>●</span>}
+                </button>
+              ) : (
+                <span key={i} />
+              ),
+            )}
+          </div>
+        </div>
+      )}
+
+      {view === 'calendar' && pickedDate && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between">
+            <p className="font-display text-[14px] text-ink">{formatDate(pickedDate)}</p>
+            <button onClick={() => setPickedDate(null)} className="text-[12px] text-muted/60 hover:text-clay">清除选择</button>
+          </div>
+          {pickedWorkout ? (
+            <ul className="mt-2 space-y-1">
+              {pickedWorkout.exercises.map((ex) => (
+                <li key={ex.id ?? ex.name} className="text-[13px] text-ink">
+                  {ex.name}
+                  <span className="text-muted"> — {ex.sets.map((set) => (set.weight ? `${set.reps}×${set.weight}kg` : `${set.reps}次`)).join('、')}</span>
+                </li>
+              ))}
+              {pickedWorkout.note && <p className="text-[12px] text-ink/70 italic mt-1">“{pickedWorkout.note}”</p>}
+            </ul>
+          ) : (
+            <p className="mt-1 text-[12px] text-muted">这天没有训练记录。</p>
+          )}
+        </div>
+      )}
+
+      {view === 'list' && workouts.length === 0 ? (
         <p className="mt-12 text-center text-[14px] text-muted">还没有记录。去「记录」页练一次吧。</p>
-      ) : (
+      ) : view === 'list' ? (
         <ul className="mt-5 space-y-4">
           {workouts.map((w) => (
             <li
@@ -244,7 +327,7 @@ export function HistoryTab({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
 
       {/* 数据管理：localStorage 换机/清缓存即丢，定期导出留个安全网 */}
       <div className="mt-8 rounded-2xl bg-surface border border-line p-4">
@@ -271,7 +354,7 @@ export function HistoryTab({
         {pending && (
           <div className="mt-3 rounded-xl bg-paper border border-clay/30 p-3 text-[12px]">
             <p className="text-ink">
-              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {pending.body.length} 条体重 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板
+              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {pending.body.length} 条体重 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水
             </p>
             <div className="mt-2 flex gap-2">
               <button onClick={confirmImport} className="px-3 py-1.5 rounded-lg bg-clay text-white">确认导入</button>

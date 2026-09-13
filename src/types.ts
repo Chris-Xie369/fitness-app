@@ -44,3 +44,17 @@ export type Routine = {
   createdAt: number
   exercises: { name: string; sets: SetEntry[] }[]
 }
+
+// 喝水记录（一天一条）
+export type WaterEntry = {
+  id: string
+  date: string
+  glasses: number
+  updatedAt: number
+}
+
+// 应用设置
+export type AppSettings = {
+  weeklyGoalDays: number
+  waterGoal: number
+}
