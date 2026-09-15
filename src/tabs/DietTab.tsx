@@ -8,6 +8,8 @@ import { last7Glasses } from '../lib/goals'
 import { dayLabel, shiftDate } from '../lib/date'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
+import { MealPlanView } from '../components/MealPlanView'
+import type { ScaledItem } from '../lib/mealplan'
 
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
@@ -59,6 +61,8 @@ export function DietTab({
   onCopyDay: (srcDate: string, targetDate: string) => void
 }) {
   const [showGoalSetup, setShowGoalSetup] = useState(false)
+  const [view, setView] = useState<'log' | 'plan'>('log')
+  const [loggedMeal, setLoggedMeal] = useState<MealType | null>(null)
   const today = todayStr()
   const [date, setDate] = useState(today)
   const isToday = date === today
@@ -110,6 +114,7 @@ export function DietTab({
     setDate(next)
     setDrafts(emptyDraft)
     setCopyConfirm(false)
+    setLoggedMeal(null)
   }
   // 函数式更新：快速连点不丢步
   function stepDate(delta: number) {
@@ -119,6 +124,7 @@ export function DietTab({
     })
     setDrafts(emptyDraft)
     setCopyConfirm(false)
+    setLoggedMeal(null)
   }
 
   function setDraft(meal: MealType, field: keyof Draft, value: string) {
@@ -167,9 +173,28 @@ export function DietTab({
     setCopyConfirm(false)
   }
 
+  // 「换一套」：菜单序号持久化到 settings（刷新/换日保留）
+  function chooseMenu(meal: MealType, index: number) {
+    onUpdateSettings({ mealChoice: { ...settings.mealChoice, [meal]: index } })
+  }
+
+  // 「按菜单记录」：逐项写入当天记录（与手动记录同构，单条可删、进备份）
+  function logMenu(meal: MealType, items: ScaledItem[]) {
+    for (const it of items) {
+      onAdd({ id: uid(), date, meal, name: `${it.name} ${it.grams}g`, kcal: it.kcal, createdAt: Date.now() })
+    }
+    setLoggedMeal(meal)
+    setTimeout(() => setLoggedMeal((cur) => (cur === meal ? null : cur)), 4000)
+  }
+
   return (
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">饮食</h1>
+
+      <div className="mt-2 flex justify-center gap-1.5">
+        <button onClick={() => setView('log')} className={`px-3 py-1 rounded-full text-[12px] border transition ${view === 'log' ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>记录</button>
+        <button onClick={() => setView('plan')} className={`px-3 py-1 rounded-full text-[12px] border transition ${view === 'plan' ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>计划</button>
+      </div>
 
       {/* 日期切换：补记/修改过去任意一天 */}
       <div className="mt-3 flex items-center justify-center gap-3">
@@ -194,15 +219,34 @@ export function DietTab({
         {!isToday && (
           <button onClick={() => goTo(today)} className="py-1 px-3 text-[12px] text-clay hover:underline">回到今天</button>
         )}
-        <button
-          onClick={copyPrev}
-          disabled={!meals.some((m) => m.date === shiftDate(date, -1))}
-          className={`py-1 px-3 text-[12px] rounded-full border transition disabled:opacity-30 ${copyConfirm ? 'border-clay text-clay' : 'border-line text-muted hover:text-clay'}`}
-        >
-          {copyConfirm ? '再点一次，将覆盖当天饮食' : '⧉ 复制前一天'}
-        </button>
+        {view === 'log' && (
+          <button
+            onClick={copyPrev}
+            disabled={!meals.some((m) => m.date === shiftDate(date, -1))}
+            className={`py-1 px-3 text-[12px] rounded-full border transition disabled:opacity-30 ${copyConfirm ? 'border-clay text-clay' : 'border-line text-muted hover:text-clay'}`}
+          >
+            {copyConfirm ? '再点一次，将覆盖当天饮食' : '⧉ 复制前一天'}
+          </button>
+        )}
       </div>
 
+      {view === 'plan' && (
+        <MealPlanView
+          isToday={isToday}
+          isTrainingDay={isTrainingDay}
+          dayTarget={targetInfo ? targetInfo.target : null}
+          goal={goal}
+          weightKg={latestWeight}
+          waterGoal={settings.waterGoal}
+          mealChoice={settings.mealChoice}
+          loggedMeal={loggedMeal}
+          onChoose={chooseMenu}
+          onLogMenu={logMenu}
+        />
+      )}
+
+      {view === 'log' && (
+        <>
       {/* 热量目标设置（无身体资料时只提示，不展示无效控件） */}
       {hasProfile ? (
       <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
@@ -401,6 +445,8 @@ export function DietTab({
           <p className="py-8 text-center text-[13px] text-muted">近 7 天还没有饮食记录</p>
         )}
       </div>
+        </>
+      )}
     </div>
   )
 }
