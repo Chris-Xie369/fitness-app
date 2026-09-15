@@ -1,4 +1,4 @@
-import type { AppSettings, BodyEntry, MealEntry, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
+import type { AppSettings, BodyEntry, MealEntry, MealType, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
@@ -60,6 +60,18 @@ export function saveWorkouts(workouts: Workout[]): void {
 }
 
 const MEAL_VALUES = ['breakfast', 'lunch', 'dinner', 'snack']
+
+// mealChoice 白名单校验：key 必须是合法餐别，值是 0-10 的整数（菜单序号）
+export function isValidMealChoice(v: unknown): Partial<Record<MealType, number>> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined
+  const out: Partial<Record<MealType, number>> = {}
+  for (const [k, val] of Object.entries(v)) {
+    if (MEAL_VALUES.includes(k) && typeof val === 'number' && Number.isInteger(val) && val >= 0 && val <= 10) {
+      out[k as MealType] = val
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
 
 // 结构校验：脏 JSON / 调试残留 / 未来 schema 变更都不能让饮食页崩
 export function isValidMeal(m: unknown): m is MealEntry {
@@ -183,6 +195,7 @@ export function loadSettings(): AppSettings {
       dietGoal: x.dietGoal === 'lose' || x.dietGoal === 'maintain' || x.dietGoal === 'gain' ? x.dietGoal : DEFAULT_SETTINGS.dietGoal,
       dietActivity: typeof x.dietActivity === 'number' && x.dietActivity >= 1 && x.dietActivity <= 2 ? x.dietActivity : DEFAULT_SETTINGS.dietActivity,
       dietPace: typeof x.dietPace === 'number' && x.dietPace >= 0.1 && x.dietPace <= 1.5 ? x.dietPace : DEFAULT_SETTINGS.dietPace,
+      mealChoice: isValidMealChoice(x.mealChoice),
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -343,6 +356,7 @@ export function parseBackup(text: string): BackupData | null {
         dietGoal: rawSettings.dietGoal === 'lose' || rawSettings.dietGoal === 'maintain' || rawSettings.dietGoal === 'gain' ? rawSettings.dietGoal : DEFAULT_SETTINGS.dietGoal,
         dietActivity: typeof rawSettings.dietActivity === 'number' && rawSettings.dietActivity >= 1 && rawSettings.dietActivity <= 2 ? rawSettings.dietActivity : DEFAULT_SETTINGS.dietActivity,
         dietPace: typeof rawSettings.dietPace === 'number' && rawSettings.dietPace >= 0.1 && rawSettings.dietPace <= 1.5 ? rawSettings.dietPace : DEFAULT_SETTINGS.dietPace,
+        mealChoice: isValidMealChoice(rawSettings.mealChoice),
       }
     : undefined
 
