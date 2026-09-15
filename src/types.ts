@@ -61,6 +61,10 @@ export type AppSettings = {
   heightCm?: number
   sex?: 'male' | 'female'
   birthYear?: number
+  // 饮食目标
+  dietGoal?: 'lose' | 'maintain' | 'gain'
+  dietActivity?: number // 活动系数 PAL：1.2/1.375/1.55/1.725
+  dietPace?: number // kg/周：0.25/0.5/0.75
 }
 
 // 身体指标（通用化：体重/体脂率/腰围…同一天每种一条）

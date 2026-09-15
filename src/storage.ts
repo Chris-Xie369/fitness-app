@@ -8,7 +8,7 @@ const WATER_KEY = 'fitness-app:water'
 const METRICS_KEY = 'fitness-app:metrics'
 const SETTINGS_KEY = 'fitness-app:settings'
 
-export const DEFAULT_SETTINGS: AppSettings = { weeklyGoalDays: 3, waterGoal: 8 }
+export const DEFAULT_SETTINGS: AppSettings = { weeklyGoalDays: 3, waterGoal: 8, dietGoal: 'maintain', dietActivity: 1.375, dietPace: 0.5 }
 
 const newId = (): string =>
   globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
@@ -180,6 +180,9 @@ export function loadSettings(): AppSettings {
       heightCm: typeof x.heightCm === 'number' && x.heightCm > 0 ? x.heightCm : undefined,
       sex: x.sex === 'male' || x.sex === 'female' ? x.sex : undefined,
       birthYear: typeof x.birthYear === 'number' && x.birthYear >= 1900 && x.birthYear <= 2100 ? x.birthYear : undefined,
+      dietGoal: x.dietGoal === 'lose' || x.dietGoal === 'maintain' || x.dietGoal === 'gain' ? x.dietGoal : DEFAULT_SETTINGS.dietGoal,
+      dietActivity: typeof x.dietActivity === 'number' && x.dietActivity >= 1 && x.dietActivity <= 2 ? x.dietActivity : DEFAULT_SETTINGS.dietActivity,
+      dietPace: typeof x.dietPace === 'number' && x.dietPace >= 0.1 && x.dietPace <= 1.5 ? x.dietPace : DEFAULT_SETTINGS.dietPace,
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -337,6 +340,9 @@ export function parseBackup(text: string): BackupData | null {
         heightCm: typeof rawSettings.heightCm === 'number' && rawSettings.heightCm > 0 ? rawSettings.heightCm : undefined,
         sex: rawSettings.sex === 'male' || rawSettings.sex === 'female' ? rawSettings.sex : undefined,
         birthYear: typeof rawSettings.birthYear === 'number' && rawSettings.birthYear >= 1900 && rawSettings.birthYear <= 2100 ? rawSettings.birthYear : undefined,
+        dietGoal: rawSettings.dietGoal === 'lose' || rawSettings.dietGoal === 'maintain' || rawSettings.dietGoal === 'gain' ? rawSettings.dietGoal : DEFAULT_SETTINGS.dietGoal,
+        dietActivity: typeof rawSettings.dietActivity === 'number' && rawSettings.dietActivity >= 1 && rawSettings.dietActivity <= 2 ? rawSettings.dietActivity : DEFAULT_SETTINGS.dietActivity,
+        dietPace: typeof rawSettings.dietPace === 'number' && rawSettings.dietPace >= 0.1 && rawSettings.dietPace <= 1.5 ? rawSettings.dietPace : DEFAULT_SETTINGS.dietPace,
       }
     : undefined
 

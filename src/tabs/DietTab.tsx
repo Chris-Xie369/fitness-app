@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
-import type { AppSettings, MealEntry, MealType, WaterEntry } from '../types'
+import type { AppSettings, MealEntry, MealType, MetricEntry, WaterEntry, Workout } from '../types'
 import { dayKcal, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
+import { ageFromBirthYear, bmrMifflin } from '../lib/body'
+import { ACTIVITY_LEVELS, calorieTarget, dayAdvice, PACE_OPTIONS, TRAINING_DAY_BONUS, weekAdherence, type DietGoal } from '../lib/nutrition'
 import { last7Glasses } from '../lib/goals'
 import { dayLabel, shiftDate } from '../lib/date'
 import { todayStr } from '../lib/streak'
@@ -36,6 +38,8 @@ function KcalTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
 export function DietTab({
   meals,
   water,
+  workouts,
+  metrics,
   settings,
   onAdd,
   onDelete,
@@ -45,6 +49,8 @@ export function DietTab({
 }: {
   meals: MealEntry[]
   water: WaterEntry[]
+  workouts: Workout[]
+  metrics: MetricEntry[]
   settings: AppSettings
   onAdd: (m: MealEntry) => void
   onDelete: (id: string) => void
@@ -52,12 +58,42 @@ export function DietTab({
   onUpdateSettings: (patch: Partial<AppSettings>) => void
   onCopyDay: (srcDate: string, targetDate: string) => void
 }) {
+  const [showGoalSetup, setShowGoalSetup] = useState(false)
   const today = todayStr()
   const [date, setDate] = useState(today)
   const isToday = date === today
   const dayMeals = meals.filter((m) => m.date === date)
   const total = dayKcal(meals, date)
   const week = weeklyKcal(meals)
+
+  // 热量目标：最近体重 + 身体资料 → Mifflin BMR → TDEE ± 缺口；训练日 +200
+  const latestWeight = metrics.filter((m) => m.type === 'weight').sort((a, b) => b.date.localeCompare(a.date))[0]?.value
+  const age = ageFromBirthYear(settings.birthYear)
+  const hasProfile = !!(latestWeight && settings.heightCm && age > 0 && settings.sex)
+  const isTrainingDay = workouts.some((w) => w.date === date)
+  const goal: DietGoal = settings.dietGoal ?? 'maintain'
+  const targetInfo = hasProfile
+    ? calorieTarget({
+        bmr: bmrMifflin(latestWeight!, settings.heightCm!, age, settings.sex!),
+        pal: settings.dietActivity ?? 1.375,
+        goal,
+        paceKgPerWeek: settings.dietPace ?? 0.5,
+        isTrainingDay,
+        sex: settings.sex,
+      })
+    : null
+  const goalLabel = goal === 'lose' ? '减脂' : goal === 'gain' ? '增肌' : '维持'
+  const advice = targetInfo ? dayAdvice(total, targetInfo.target, isToday) : ''
+  const workoutDateSet = new Set(workouts.map((w) => w.date))
+  // 周建议只在看今天时显示；按每天自己的目标（训练日 +200）评估，至少 3 天记录
+  const weekTip = targetInfo && isToday
+    ? weekAdherence(
+        week.map((d) => ({ date: d.date, kcal: d.kcal })),
+        workoutDateSet,
+        targetInfo.restTarget,
+        goal,
+      )
+    : null
   const hasWeekData = week.some((d) => d.kcal > 0)
   const [drafts, setDrafts] = useState(emptyDraft)
   const [copyConfirm, setCopyConfirm] = useState(false)
@@ -167,13 +203,84 @@ export function DietTab({
         </button>
       </div>
 
-      {/* 当日总热量 */}
-      <div className="mt-4 rounded-2xl bg-surface border border-line p-6 text-center">
-        <p className="font-display text-[15px] text-muted">{isToday ? '今天已吃' : '当天已吃'}</p>
-        <p className="font-display text-[56px] leading-none mt-1 text-clay">
-          {total}<span className="text-[20px] text-muted"> kcal</span>
-        </p>
+      {/* 热量目标设置（无身体资料时只提示，不展示无效控件） */}
+      {hasProfile ? (
+      <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
+        <button onClick={() => setShowGoalSetup(!showGoalSetup)} className="w-full flex items-center justify-between text-[13px]">
+          <span className="font-display italic text-muted">热量目标 · {goalLabel}{goal !== 'maintain' ? ` ${settings.dietPace ?? 0.5}kg/周` : ''}</span>
+          <span className="text-clay">{showGoalSetup ? '收起' : `${targetInfo!.target} kcal/天${isTrainingDay ? `（含训练日 +${TRAINING_DAY_BONUS}）` : ''}`}</span>
+        </button>
+        {showGoalSetup && (
+          <div className="mt-3 space-y-3">
+            <div>
+              <p className="text-[11px] text-muted mb-1">目标</p>
+              <div className="flex gap-1.5">
+                {([['lose', '减脂'], ['maintain', '维持'], ['gain', '增肌']] as [DietGoal, string][]).map(([v, l]) => (
+                  <button key={v} onClick={() => onUpdateSettings({ dietGoal: v })} className={`flex-1 py-1.5 rounded-full text-[12px] border ${goal === v ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {goal !== 'maintain' && (
+              <div>
+                <p className="text-[11px] text-muted mb-1">速度</p>
+                <div className="flex gap-1.5">
+                  {PACE_OPTIONS.map((p) => (
+                    <button key={p.value} onClick={() => onUpdateSettings({ dietPace: p.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietPace ?? 0.5) === p.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{p.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <p className="text-[11px] text-muted mb-1">日常活动量</p>
+              <div className="flex gap-1.5">
+                {ACTIVITY_LEVELS.map((a) => (
+                  <button key={a.value} onClick={() => onUpdateSettings({ dietActivity: a.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietActivity ?? 1.375) === a.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{a.label}</button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted/70 mt-1">{ACTIVITY_LEVELS.find((a) => a.value === (settings.dietActivity ?? 1.375))?.hint}；训练日自动 +200 kcal</p>
+            </div>
+          </div>
+        )}
       </div>
+      ) : (
+        <div className="mt-4 rounded-2xl bg-surface border border-line p-4 text-center">
+          <p className="text-[12px] text-muted">在「身体」页填写体重、身高、性别和出生年后，这里会生成每日热量目标</p>
+        </div>
+      )}
+
+      {/* 当日热量 vs 目标 */}
+      {targetInfo ? (
+        <div className="mt-3 rounded-2xl bg-surface border border-line p-5 text-center">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[11px] text-muted text-left">已吃</p>
+              <p className="font-display text-[28px] leading-none text-ink">{total}<span className="text-[12px] text-muted"> kcal</span></p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] text-muted">{total <= targetInfo.target ? '还能吃' : '已超出'}</p>
+              <p className={`font-display text-[40px] leading-none ${total <= targetInfo.target ? 'text-clay' : 'text-ink/60'}`}>
+                {Math.abs(targetInfo.target - total)}<span className="text-[14px] text-muted"> kcal</span>
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-line overflow-hidden">
+            <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/50' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
+          </div>
+          <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
+          {targetInfo.clamped && goal === 'lose' && (
+            <p className="mt-1 text-[11px] text-clay">目标已按安全下限调整（{settings.sex === 'male' ? 1500 : 1200} kcal），建议放慢速度</p>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3 rounded-2xl bg-surface border border-line p-6 text-center">
+          <p className="font-display text-[15px] text-muted">{isToday ? '今天已吃' : '当天已吃'}</p>
+          <p className="font-display text-[56px] leading-none mt-1 text-clay">
+            {total}<span className="text-[20px] text-muted"> kcal</span>
+          </p>
+          <p className="mt-2 text-[11px] text-muted/80">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
+        </div>
+      )}
+      {weekTip && <p className="mt-2 px-1 text-[12px] text-ink/70">📊 {weekTip}</p>}
 
       {/* 喝水 */}
       <div className="mt-3 rounded-2xl bg-surface border border-line p-4">

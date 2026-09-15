@@ -196,7 +196,7 @@ export default function App() {
               restTimer={restTimer}
             />
           )}
-          {tab === 'diet' && <DietTab meals={meals} water={water} settings={settings} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />}
+          {tab === 'diet' && <DietTab meals={meals} water={water} workouts={workouts} metrics={metrics} settings={settings} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />}
           {tab === 'body' && (
             <BodyTab
               metrics={metrics}
