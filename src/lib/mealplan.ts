@@ -16,7 +16,8 @@ const PROTEIN_COEFF: Record<DietGoal, number> = { lose: 2.0, maintain: 1.6, gain
 
 // ±10% 取范围，按 5g 取整（和克数缩放同一套取整语言）
 function range5(mid: number): MacroRange {
-  return { low: Math.max(5, Math.round((mid * 0.9) / 5) * 5), high: Math.round((mid * 1.1) / 5) * 5 }
+  const low = Math.max(5, Math.round((mid * 0.9) / 5) * 5)
+  return { low, high: Math.max(low, Math.round((mid * 1.1) / 5) * 5) }
 }
 
 export function macroTargets(weightKg: number, goal: DietGoal, dayTargetKcal: number): MacroTargets {
