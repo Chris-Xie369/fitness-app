@@ -542,9 +542,10 @@ export function DietTab({
                   </button>
                 </div>
 
-                {/* 自动补全下拉：绝对定位浮在卡片内，不顶动布局 */}
+                {/* 自动补全下拉：文档流内展开（卡片变高、下方卡片下移）——
+                    绝对定位会盖住下一张餐卡的输入框，点击被建议行截胡，绝不改回浮层 */}
                 {suggestions.length > 0 && (
-                  <ul className="absolute z-10 left-0 right-[116px] top-[42px] max-h-40 overflow-y-auto rounded-xl border border-line bg-surface shadow-lg">
+                  <ul className="mt-1.5 max-h-40 overflow-y-auto rounded-xl border border-line bg-surface shadow">
                     {suggestions.map((s, i) => (
                       <li key={s.name}>
                         <button
