@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import type { AppSettings, MealEntry, MealType, MetricEntry, WaterEntry, Workout } from '../types'
-import { dayKcal, dayMacros, learnedKcal, macrosOf, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
+import { dayKcal, dayMacros, learnedKcal, mealMacros, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
 import { kcalFor, searchFoods } from '../lib/foods'
 import { ageFromBirthYear, bmrMifflin } from '../lib/body'
 import { ACTIVITY_LEVELS, calorieTarget, dayAdvice, PACE_OPTIONS, TRAINING_DAY_BONUS, weekAdherence, type DietGoal } from '../lib/nutrition'
@@ -42,6 +42,38 @@ function KcalTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
   )
 }
 
+// 宏量三格：当前值 + 目标范围 + 进度条（区间内 clay，超范围 ink，未达标 muted）
+function MacroBars({ today, target, missed }: {
+  today: { p: number; c: number; f: number }
+  target: { protein: { low: number; high: number }; carbs: { low: number; high: number }; fat: { low: number; high: number } } | null
+  missed: number
+}) {
+  const rows = [
+    { label: '蛋白', key: 'P' as const, cur: today.p, range: target?.protein },
+    { label: '碳水', key: 'C' as const, cur: today.c, range: target?.carbs },
+    { label: '脂肪', key: 'F' as const, cur: today.f, range: target?.fat },
+  ]
+  return (
+    <div className="mt-2">
+      <div className="grid grid-cols-3 gap-2">
+        {rows.map((r) => {
+          const pct = r.range ? Math.min(100, Math.round((r.cur / r.range.high) * 100)) : 0
+          const tone = !r.range ? 'bg-line' : r.cur > r.range.high ? 'bg-ink/50' : r.cur >= r.range.low ? 'bg-clay' : 'bg-line'
+          return (
+            <div key={r.key}>
+              <p className="text-[10px] text-muted-weak">{r.key} {r.label}</p>
+              <p className="text-[13px] text-ink tabular-nums leading-tight">{r.cur}g{r.range ? <span className="text-[10px] text-muted-weak"> / {r.range.low}-{r.range.high}</span> : null}</p>
+              {r.range && <div className="mt-0.5 h-1 rounded-full bg-line"><div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} /></div>}
+            </div>
+          )
+        })}
+      </div>
+      {missed > 0 && <p className="mt-1 text-[10px] text-muted-weak">{missed} 条库外记录未计入宏量（只计热量）</p>}
+      {!target && <p className="mt-1 text-[10px] text-muted-weak">P 蛋白 · C 碳水 · F 脂肪（填身体资料后显示目标范围）</p>}
+    </div>
+  )
+}
+
 export function DietTab({
   meals,
   water,
@@ -67,7 +99,6 @@ export function DietTab({
 }) {
   const [showGoalSetup, setShowGoalSetup] = useState(false)
   const [view, setView] = useState<'log' | 'plan'>('log')
-  const [loggedKeys, setLoggedKeys] = useState<string[]>([])
   const today = todayStr()
   const [date, setDate] = useState(today)
   const isToday = date === today
@@ -94,6 +125,8 @@ export function DietTab({
   const goalLabel = goal === 'lose' ? '减脂' : goal === 'gain' ? '增肌' : '维持'
   const advice = targetInfo ? dayAdvice(total, targetInfo.target, isToday) : ''
   const macrosToday = dayMacros(meals, date)
+  // 库外/无克数记录只贡献热量，不计入宏量
+  const macrosMissed = dayMeals.filter((m) => !mealMacros(m)).length
   const macroTargetsInfo = targetInfo && latestWeight ? macroTargets(latestWeight, goal, targetInfo.target) : null
   const workoutDateSet = new Set(workouts.map((w) => w.date))
   // 周建议只在看今天时显示；按每天自己的目标（训练日 +200）评估，至少 3 天记录
@@ -123,7 +156,6 @@ export function DietTab({
     setDate(next)
     setDrafts(freshDrafts())
     setCopyConfirm(false)
-    setLoggedKeys([])
     setSuggest(null)
   }
   // 函数式更新：快速连点不丢步
@@ -134,7 +166,6 @@ export function DietTab({
     })
     setDrafts(freshDrafts())
     setCopyConfirm(false)
-    setLoggedKeys([])
     setSuggest(null)
   }
 
@@ -270,15 +301,12 @@ export function DietTab({
   }
 
   // 「按菜单记录」：逐项写入当天记录（与手动记录同构，单条可删、进备份）
-  function logMenu(meal: MealType, menuId: string, items: ScaledItem[]) {
-    // 反向写入：addMeal 前插，倒序遍历后最终展示顺序与菜单一致
+  function logMenu(meal: MealType, _menuId: string, items: ScaledItem[]) {
+    // 同一批次用相同 createdAt：menuLoggedCount 据此识别「已记录 N 次」，防重复/可再记
+    const batchAt = Date.now()
     for (const it of [...items].reverse()) {
-      onAdd({ id: uid(), date, meal, name: `${it.name} ${it.grams}g`, kcal: it.kcal, createdAt: Date.now() })
+      onAdd({ id: uid(), date, meal, name: `${it.name} ${it.grams}g`, kcal: it.kcal, createdAt: batchAt })
     }
-    // 多张餐卡的确认态并存，各自 4 秒独立复位（连记多餐不会互相顶掉）
-    const key = `${meal}:${menuId}`
-    setLoggedKeys((prev) => (prev.includes(key) ? prev : [...prev, key]))
-    setTimeout(() => setLoggedKeys((prev) => prev.filter((k) => k !== key)), 4000)
   }
 
   // 增肌只用慢档：0.75kg/周 = 每天约 +825kcal 盈余，超出部分主要转化为脂肪
@@ -336,7 +364,9 @@ export function DietTab({
           weightKg={latestWeight}
           waterGoal={settings.waterGoal}
           mealChoice={settings.mealChoice}
-          loggedKeys={loggedKeys}
+          meals={meals}
+          date={date}
+          eaten={total}
           onChoose={chooseMenu}
           onLogMenu={logMenu}
         />
@@ -413,12 +443,7 @@ export function DietTab({
             <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/50' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
           </div>
           <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
-          <p className="mt-2 text-[11px] text-muted tabular-nums">
-            {isToday ? '今天' : '当天'} · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
-            {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
-            {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
-          </p>
-          <p className="mt-1 text-[10px] text-muted-weak">P 蛋白 · C 碳水 · F 脂肪（库外食物只计热量）</p>
+          <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
           {targetInfo.clamped && goal === 'lose' && (
             <p className="mt-1 text-[11px] text-clay">目标已按安全下限调整（{settings.sex === 'male' ? 1500 : 1200} kcal），建议放慢速度</p>
           )}
@@ -430,12 +455,7 @@ export function DietTab({
             {total}<span className="text-[20px] text-muted"> kcal</span>
           </p>
           <p className="mt-2 text-[11px] text-muted">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
-          <p className="mt-2 text-[11px] text-muted tabular-nums">
-            {isToday ? '今天' : '当天'} · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
-            {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
-            {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
-          </p>
-          <p className="mt-1 text-[10px] text-muted-weak">P 蛋白 · C 碳水 · F 脂肪（库外食物只计热量）</p>
+          <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
         </div>
       )}
       {weekTip && <p className="mt-2 px-1 text-[12px] text-ink/70">📊 {weekTip}</p>}
@@ -493,8 +513,7 @@ export function DietTab({
                       <span className="text-ink">{m.name}</span>
                       <span className="flex items-center gap-2">
                         {(() => {
-                          const g = m.name.trim().match(/^(.*?)\s*(\d+(?:\.\d+)?)g$/)
-                          const mac = g ? macrosOf(m.name, Number(g[2])) : null
+                          const mac = mealMacros(m)
                           return mac ? <span className="text-[10px] text-muted-weak tabular-nums">P{mac.p}·C{mac.c}·F{mac.f}</span> : null
                         })()}
                         <span className="text-muted">{m.kcal} kcal</span>

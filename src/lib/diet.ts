@@ -119,14 +119,43 @@ export function dayMacros(meals: MealEntry[], date: string): { p: number; c: num
   const out = { p: 0, c: 0, f: 0 }
   for (const m of meals) {
     if (m.date !== date) continue
-    const match = m.name.trim().match(GRAM_SUFFIX)
-    if (!match) continue
-    const grams = Number(match[2])
-    const mac = macrosOf(m.name, grams)
+    const mac = mealMacros(m)
     if (!mac) continue
     out.p += mac.p
     out.c += mac.c
     out.f += mac.f
   }
   return out
+}
+
+// 「按菜单记录」防重复：按 createdAt 批次识别当天该餐已写入过几次该菜单
+// 同一批（同毫秒）包含菜单全部「名 克数g」条目即计 1 次；菜单克数变化后旧批次不再计入
+export function menuLoggedCount(
+  meals: MealEntry[],
+  date: string,
+  items: { name: string; grams: number }[],
+): number {
+  if (items.length === 0) return 0
+  const wanted = new Set(items.map((it) => `${it.name} ${it.grams}g`))
+  const batches = new Map<number, Set<string>>()
+  for (const m of meals) {
+    if (m.date !== date) continue
+    const set = batches.get(m.createdAt) ?? new Set<string>()
+    set.add(m.name)
+    batches.set(m.createdAt, set)
+  }
+  let count = 0
+  for (const names of batches.values()) {
+    let all = true
+    for (const w of wanted) if (!names.has(w)) { all = false; break }
+    if (all) count++
+  }
+  return count
+}
+
+// 单条记录的宏量（封装名称解析）；库外/无克数/查不到库名返回 null
+export function mealMacros(m: MealEntry): { p: number; c: number; f: number } | null {
+  const match = m.name.trim().match(GRAM_SUFFIX)
+  if (!match) return null
+  return macrosOf(m.name, Number(match[2]))
 }

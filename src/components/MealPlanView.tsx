@@ -1,7 +1,8 @@
 import type { MealType } from '../types'
 import type { DietGoal } from '../lib/nutrition'
 import { TRAINING_DAY_BONUS } from '../lib/nutrition'
-import { MEAL_TYPES } from '../lib/diet'
+import { menuLoggedCount, MEAL_TYPES } from '../lib/diet'
+import type { MealEntry } from '../types'
 import { BASE_KCAL, macroTargets, menusFor, scaleMenu, type ScaledItem } from '../lib/mealplan'
 
 export function MealPlanView({
@@ -12,7 +13,9 @@ export function MealPlanView({
   weightKg,
   waterGoal,
   mealChoice,
-  loggedKeys,
+  meals,
+  date,
+  eaten,
   onChoose,
   onLogMenu,
 }: {
@@ -23,7 +26,9 @@ export function MealPlanView({
   weightKg?: number
   waterGoal: number
   mealChoice: Partial<Record<MealType, number>> | undefined
-  loggedKeys: string[]
+  meals: MealEntry[]
+  date: string
+  eaten: number
   onChoose: (meal: MealType, index: number) => void
   onLogMenu: (meal: MealType, menuId: string, items: ScaledItem[]) => void
 }) {
@@ -31,10 +36,11 @@ export function MealPlanView({
   const usingBase = dayTarget == null
   const target = dayTarget ?? BASE_KCAL
   const macros = weightKg ? macroTargets(weightKg, goal, target) : null
+  const remain = Math.max(0, target - eaten)
 
   return (
     <div>
-      {/* 🎯 每日营养目标（只展示目标范围，不做达成追踪） */}
+      {/* 🎯 每日营养目标 + 当天进度（记完餐不用切回记录页看余量） */}
       <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
         <p className="font-display italic text-muted text-[13px]">🎯 每日营养目标{!usingBase && isTrainingDay ? ` · 训练日 +${TRAINING_DAY_BONUS}` : ''}</p>
         {usingBase ? (
@@ -42,7 +48,12 @@ export function MealPlanView({
             在「身体」页填写体重、身高、性别和出生年后，这里会生成你的专属目标；当前菜单按 {BASE_KCAL} kcal 基准展示
           </p>
         ) : (
-          <p className="mt-2 font-display text-[24px] text-clay">{target}<span className="text-[13px] text-muted"> kcal/天</span></p>
+          <>
+            <p className="mt-2 font-display text-[24px] text-clay">{target}<span className="text-[13px] text-muted"> kcal/天</span></p>
+            <p className="mt-1 text-[12px] text-muted tabular-nums">
+              {isToday ? '今天' : '当天'}已吃 {eaten} kcal · 还能吃 {remain} kcal{eaten > target ? '（已超目标）' : ''}
+            </p>
+          </>
         )}
         {macros && !usingBase && (
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -71,7 +82,8 @@ export function MealPlanView({
           const idx = (mealChoice?.[type] ?? 0) % menus.length
           const menu = menus[idx]
           const scaled = scaleMenu(menu, target)
-          const logged = loggedKeys.includes(`${type}:${menu.id}`)
+          const loggedCount = menuLoggedCount(meals, date, scaled.items)
+          const logged = loggedCount > 0
           return (
             <div key={type} className="rounded-2xl bg-surface border border-line p-4">
               <div className="flex items-center justify-between">
@@ -89,6 +101,7 @@ export function MealPlanView({
                   </li>
                 ))}
               </ul>
+              {logged && <p className="mt-2 text-[11px] text-clay">✓ 今天已记录 {loggedCount} 次（重复记会累加，可在「记录」里删除）</p>}
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => onChoose(type, (idx + 1) % menus.length)}
@@ -98,12 +111,9 @@ export function MealPlanView({
                 </button>
                 <button
                   onClick={() => onLogMenu(type, menu.id, scaled.items)}
-                  disabled={logged}
-                  className={`flex-1 py-1.5 rounded-full text-[12px] transition ${
-                    logged ? 'bg-line text-muted-weak' : 'bg-clay text-white hover:bg-clay/90 active:scale-95'
-                  }`}
+                  className="flex-1 py-1.5 rounded-full text-[12px] bg-clay text-white hover:bg-clay/90 active:scale-95 transition"
                 >
-                  {logged ? `✓ 已记录 ${scaled.items.length} 项` : '按菜单记录'}
+                  {logged ? `再记一次（${loggedCount}）` : '按菜单记录'}
                 </button>
               </div>
             </div>
@@ -117,7 +127,7 @@ export function MealPlanView({
         </p>
       ) : (
         <p className="mt-3 px-1 text-[11px] text-muted-weak leading-relaxed">
-          菜单克数按{isToday ? '今天' : '当天'}目标 {target} kcal 自动缩放；热量为食材近似值，未计烹调用油，以少油为准。重复点「按菜单记录」会重复写入，可在「记录」里单条删除
+          菜单克数按{isToday ? '今天' : '当天'}目标 {target} kcal 自动缩放；热量为食材近似值，未计烹调用油，以少油为准
         </p>
       )}
     </div>
