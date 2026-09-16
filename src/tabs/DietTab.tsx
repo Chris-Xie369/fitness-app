@@ -500,16 +500,20 @@ export function DietTab({
               )}
 
               {!d.name && suggestions.length === 0 && recent.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {recent.slice(0, 6).map((r) => (
-                    <button
-                      key={r.name}
-                      onClick={() => applyRecent(type, r.name, r.kcal)}
-                      className="px-2.5 py-1 rounded-full bg-paper border border-line text-[12px] text-ink hover:border-clay/50 hover:text-clay transition"
-                    >
-                      {r.name} {r.kcal}
-                    </button>
-                  ))}
+                <div className="mt-2">
+                  {/* 快捷按钮四餐共用（点按把名字+热量填进本餐输入框），不是已记录的条目 */}
+                  <p className="text-[10px] text-muted/60 mb-1">⏱ 最近 · 点按快速录入（非已记录）</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {recent.slice(0, 6).map((r) => (
+                      <button
+                        key={r.name}
+                        onClick={() => applyRecent(type, r.name, r.kcal)}
+                        className="px-2.5 py-1 rounded-full bg-paper border border-dashed border-line text-[12px] text-muted hover:border-clay/50 hover:text-clay transition"
+                      >
+                        {r.name} {r.kcal}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
