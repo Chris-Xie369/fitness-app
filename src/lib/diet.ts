@@ -72,3 +72,27 @@ export function recentMeals(meals: MealEntry[], limit = 6): { name: string; kcal
   }
   return names.slice(0, limit)
 }
+
+// 库外食物的历史估算：从「<名> <克数>g」形态的历史记录反推 kcal/100g（克数来自菜单记录或克数录入）。
+// 只采纳基础名完全一致、估算值落在合理区间 [5,900] 的样本；无克数样本返回 null。
+const GRAM_SUFFIX = /^(.*?)\s*(\d+(?:\.\d+)?)g$/
+
+export function learnedKcal(meals: MealEntry[], name: string): number | null {
+  const base = name.trim()
+  if (!base) return null
+  let sumPerGram = 0
+  let n = 0
+  for (const m of meals) {
+    const match = m.name.trim().match(GRAM_SUFFIX)
+    if (!match) continue
+    if (match[1].trim() !== base) continue
+    const grams = Number(match[2])
+    if (!(grams > 0)) continue
+    const per100 = (m.kcal / grams) * 100
+    if (per100 < 5 || per100 > 900) continue
+    sumPerGram += m.kcal / grams
+    n++
+  }
+  if (n === 0) return null
+  return Math.round((sumPerGram / n) * 100)
+}
