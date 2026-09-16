@@ -119,7 +119,7 @@ export function ProgressPhotos() {
       {loadError && <p className="mt-2 text-[12px] text-clay">照片暂时读不出来，重启 App 再试。</p>}
 
       {photos.length === 0 && !loadError ? (
-        <p className="mt-3 text-[12px] text-muted/70">还没有照片。每周固定时间拍一张正面/侧面照，体型变化比体重更诚实。</p>
+        <p className="mt-3 text-[12px] text-muted-weak">还没有照片。每周固定时间拍一张正面/侧面照，体型变化比体重更诚实。</p>
       ) : photos.length > 0 ? (
         <>
           <div className="mt-3 grid grid-cols-3 gap-2">
@@ -139,7 +139,7 @@ export function ProgressPhotos() {
                 <button
                   onClick={() => void remove(p.id)}
                   aria-label="删除照片"
-                  className={`absolute right-1 top-1 h-5 min-w-5 px-1 rounded-full text-[10px] leading-none transition ${confirmDelete === p.id ? 'bg-clay text-white' : 'bg-ink/55 text-white'}`}
+                  className={`absolute right-1 top-1 h-5 min-w-5 -m-1.5 p-1.5 box-content rounded-full text-[10px] leading-none transition ${confirmDelete === p.id ? 'bg-clay text-white' : 'bg-ink/55 text-white'}`}
                 >
                   {confirmDelete === p.id ? '确认?' : '✕'}
                 </button>
@@ -158,7 +158,7 @@ export function ProgressPhotos() {
           </div>
         </>
       ) : null}
-      <p className="mt-3 text-[10px] text-muted/60">照片存在这台手机上，并会一起包含在导出备份里。</p>
+      <p className="mt-3 text-[10px] text-muted-weak">照片存在这台手机上，并会一起包含在导出备份里。</p>
 
       {/* 双图对比：absolute 限定在手机屏幕容器内 */}
       {comparing && comparePhotos.length === 2 && (

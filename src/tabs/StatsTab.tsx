@@ -163,9 +163,9 @@ export function StatsTab({
             <div className="text-right">
               <p className="text-[11px] text-muted leading-tight">周目标</p>
               <div className="flex items-center gap-1">
-                <button onClick={() => onUpdateSettings({ weeklyGoalDays: Math.max(1, settings.weeklyGoalDays - 1) })} className="w-5 h-5 rounded-full border border-line text-muted text-xs leading-none hover:text-clay">－</button>
+                <button onClick={() => onUpdateSettings({ weeklyGoalDays: Math.max(1, settings.weeklyGoalDays - 1) })} className="h-7 w-7 rounded-full border border-line text-muted leading-none hover:text-clay" aria-label="周目标减一天">－</button>
                 <span className="text-[12px] text-ink w-8 text-center tabular-nums">{settings.weeklyGoalDays} 天</span>
-                <button onClick={() => onUpdateSettings({ weeklyGoalDays: Math.min(7, settings.weeklyGoalDays + 1) })} className="w-5 h-5 rounded-full border border-line text-muted text-xs leading-none hover:text-clay">＋</button>
+                <button onClick={() => onUpdateSettings({ weeklyGoalDays: Math.min(7, settings.weeklyGoalDays + 1) })} className="h-7 w-7 rounded-full border border-line text-muted leading-none hover:text-clay" aria-label="周目标加一天">＋</button>
               </div>
             </div>
           </div>
@@ -354,7 +354,7 @@ function WeekCell({ label, cur, prev, hasPrev = false, unit, neutral = false, co
   const arrow = cur == null ? '' : cur > prev ? ' ↑' : cur < prev ? ' ↓' : ' –'
   const diff = (cur ?? 0) - prev
   // 热量箭头用中性色（多吃不一定是好事）；无数据灰色
-  const tone = cur == null ? 'text-muted/50' : neutral ? 'text-muted' : diff > 0 ? 'text-clay' : diff < 0 ? 'text-muted' : 'text-muted/60'
+  const tone = cur == null ? 'text-muted/50' : neutral ? 'text-muted' : diff > 0 ? 'text-clay' : diff < 0 ? 'text-muted' : 'text-muted-weak'
   return (
     <div>
       <p className="font-display text-[22px] leading-none text-clay">

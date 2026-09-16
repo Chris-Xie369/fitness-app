@@ -4,7 +4,8 @@
   --color-paper: #F1ECE0;
   --color-surface: #FBF8F1;
   --color-ink: #211C16;
-  --color-muted: #8C8275;
+  --color-muted: #6F6659;
+  --color-muted-weak: #7C7366;
   --color-line: #E2DBCD;
   --color-clay: #B8553A;
   --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, "Songti SC", "STSong", serif;
@@ -16,6 +17,8 @@ html, body, #root { height: 100%; }
 :root { color-scheme: light; }
 body {
   margin: 0;
+  /* 与纸色一致：iOS 独立模式状态栏/过滚动不再漏白 */
+  background: var(--color-paper);
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }

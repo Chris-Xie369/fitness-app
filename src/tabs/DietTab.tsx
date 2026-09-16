@@ -370,7 +370,7 @@ export function DietTab({
                   ))}
                 </div>
                 {goal === 'gain' && (
-                  <p className={`text-[10px] mt-1 ${(settings.dietPace ?? 0.5) > 0.5 ? 'text-clay' : 'text-muted/70'}`}>
+                  <p className={`text-[10px] mt-1 ${(settings.dietPace ?? 0.5) > 0.5 ? 'text-clay' : 'text-muted-weak'}`}>
                     {(settings.dietPace ?? 0.5) > 0.5 ? '当前 0.75kg/周 盈余偏大，建议选 0.5 或 0.25' : '增肌宜慢，速度过快多长脂肪'}
                   </p>
                 )}
@@ -383,7 +383,7 @@ export function DietTab({
                   <button key={a.value} onClick={() => onUpdateSettings({ dietActivity: a.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietActivity ?? 1.375) === a.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{a.label}</button>
                 ))}
               </div>
-              <p className="text-[10px] text-muted/70 mt-1">{ACTIVITY_LEVELS.find((a) => a.value === (settings.dietActivity ?? 1.375))?.hint}；训练日自动 +200 kcal</p>
+              <p className="text-[10px] text-muted-weak mt-1">{ACTIVITY_LEVELS.find((a) => a.value === (settings.dietActivity ?? 1.375))?.hint}；训练日自动 +200 kcal</p>
             </div>
           </div>
         )}
@@ -404,7 +404,7 @@ export function DietTab({
             </div>
             <div className="text-right">
               <p className="text-[11px] text-muted">{total <= targetInfo.target ? '还能吃' : '已超出'}</p>
-              <p className={`font-display text-[40px] leading-none ${total <= targetInfo.target ? 'text-clay' : 'text-ink/60'}`}>
+              <p className={`font-display text-[40px] leading-none ${total <= targetInfo.target ? 'text-clay' : 'text-muted'}`}>
                 {Math.abs(targetInfo.target - total)}<span className="text-[14px] text-muted"> kcal</span>
               </p>
             </div>
@@ -413,7 +413,7 @@ export function DietTab({
             <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/50' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
           </div>
           <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
-          <p className="mt-2 text-[11px] text-muted/80 tabular-nums">
+          <p className="mt-2 text-[11px] text-muted tabular-nums">
             {isToday ? '今天' : '当天'} · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
             {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
             {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
@@ -428,8 +428,8 @@ export function DietTab({
           <p className="font-display text-[56px] leading-none mt-1 text-clay">
             {total}<span className="text-[20px] text-muted"> kcal</span>
           </p>
-          <p className="mt-2 text-[11px] text-muted/80">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
-          <p className="mt-2 text-[11px] text-muted/80 tabular-nums">
+          <p className="mt-2 text-[11px] text-muted">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
+          <p className="mt-2 text-[11px] text-muted tabular-nums">
             {isToday ? '今天' : '当天'} · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
             {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
             {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
@@ -443,9 +443,9 @@ export function DietTab({
         <div className="flex items-center justify-between">
           <p className="text-[15px] text-ink">💧 喝水</p>
           <div className="flex items-center gap-2">
-            <button onClick={() => onChangeWater(date, -1)} disabled={todayGlasses === 0} className="h-7 w-7 rounded-full border border-line text-muted enabled:hover:text-clay disabled:opacity-30">－</button>
+            <button onClick={() => onChangeWater(date, -1)} disabled={todayGlasses === 0} aria-label="减少一杯" className="h-7 w-7 -m-2 p-2 box-content rounded-full border border-line text-muted enabled:hover:text-clay disabled:opacity-30">－</button>
             <p className="font-display text-[20px] text-clay w-16 text-center tabular-nums">{todayGlasses}<span className="text-[12px] text-muted">/{settings.waterGoal} 杯</span></p>
-            <button onClick={() => onChangeWater(date, 1)} className="h-7 w-7 rounded-full bg-clay text-white text-lg leading-none">＋</button>
+            <button onClick={() => onChangeWater(date, 1)} aria-label="增加一杯" className="h-7 w-7 -m-2 p-2 box-content rounded-full bg-clay text-white text-lg leading-none">＋</button>
           </div>
         </div>
         <div className="mt-3 flex items-end justify-between gap-1">
@@ -458,10 +458,14 @@ export function DietTab({
             </div>
           ))}
         </div>
-        <button onClick={() => onUpdateSettings({ waterGoal: settings.waterGoal === 8 ? 10 : 8 })} className="mt-2 text-[11px] text-muted/70 hover:text-clay">
+        <button onClick={() => onUpdateSettings({ waterGoal: settings.waterGoal === 8 ? 10 : 8 })} className="mt-2 text-[11px] text-muted-weak hover:text-clay">
           每日目标 {settings.waterGoal} 杯 · 点此切换 8/10
         </button>
       </div>
+
+      {meals.length === 0 && (
+        <p className="mt-3 text-center text-[11px] text-muted-weak">输入食物名 → 选建议 → 填克数，自动算热量；不知道吃什么可切到「计划」按菜单记录</p>
+      )}
 
       {/* 四餐 */}
       <div className="mt-5 space-y-3">
@@ -489,7 +493,7 @@ export function DietTab({
                         {(() => {
                           const g = m.name.trim().match(/^(.*?)\s*(\d+(?:\.\d+)?)g$/)
                           const mac = g ? macrosOf(m.name, Number(g[2])) : null
-                          return mac ? <span className="text-[10px] text-muted/70 tabular-nums">P{mac.p}·C{mac.c}·F{mac.f}</span> : null
+                          return mac ? <span className="text-[10px] text-muted-weak tabular-nums">P{mac.p}·C{mac.c}·F{mac.f}</span> : null
                         })()}
                         <span className="text-muted">{m.kcal} kcal</span>
                         <button onClick={() => onDelete(m.id)} className="-m-3 p-3 leading-none text-muted/50 hover:text-clay text-sm">✕</button>
@@ -502,7 +506,7 @@ export function DietTab({
               {!d.name && suggestions.length === 0 && recent.length > 0 && (
                 <div className="mt-2">
                   {/* 快捷按钮四餐共用（点按把名字+热量填进本餐输入框），不是已记录的条目 */}
-                  <p className="text-[10px] text-muted/60 mb-1">⏱ 最近 · 点按快速录入（非已记录）</p>
+                  <p className="text-[10px] text-muted-weak mb-1">⏱ 最近 · 点按快速录入（非已记录）</p>
                   <div className="flex flex-wrap gap-1.5">
                     {recent.slice(0, 6).map((r) => (
                       <button
@@ -529,7 +533,7 @@ export function DietTab({
                     onBlur={() => setTimeout(() => setSuggest((s) => (s?.meal === type ? null : s)), 120)}
                     onKeyDown={(e) => nameKeyDown(type, e)}
                     placeholder="食物（如：鸡胸肉）"
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                   />
                   {picked ? (
                     <input
@@ -538,7 +542,7 @@ export function DietTab({
                       onKeyDown={(e) => e.key === 'Enter' && add(type)}
                       inputMode="decimal"
                       placeholder="克数"
-                      className="w-16 px-3 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                      className="w-16 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                     />
                   ) : (
                     <input
@@ -547,7 +551,7 @@ export function DietTab({
                       onKeyDown={(e) => e.key === 'Enter' && add(type)}
                       inputMode="numeric"
                       placeholder="大卡"
-                      className="w-16 px-3 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                      className="w-16 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                     />
                   )}
                   <button
@@ -556,7 +560,7 @@ export function DietTab({
                     className={`shrink-0 w-9 h-9 rounded-xl text-[18px] leading-none transition ${
                       canAdd(type)
                         ? 'bg-clay text-white hover:bg-clay/90 active:scale-95'
-                        : 'bg-line text-muted/60'
+                        : 'bg-line text-muted-weak'
                     }`}
                   >
                     ＋

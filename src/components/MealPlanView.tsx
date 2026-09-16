@@ -60,7 +60,7 @@ export function MealPlanView({
             </div>
           </div>
         )}
-        <p className="mt-2 text-[11px] text-muted/80">💧 饮水目标 {waterGoal} 杯（切换到「记录」打卡）</p>
+        <p className="mt-2 text-[11px] text-muted">💧 饮水目标 {waterGoal} 杯（切换到「记录」打卡）</p>
       </div>
 
       {/* 四餐菜单 */}
@@ -82,7 +82,7 @@ export function MealPlanView({
                   <li key={it.name} className="flex items-baseline justify-between gap-2 text-[13px]">
                     <span className="text-ink min-w-0">
                       {it.name}
-                      {it.hint && <span className="ml-1.5 text-[11px] text-muted/80">{it.hint}</span>}
+                      {it.hint && <span className="ml-1.5 text-[11px] text-muted">{it.hint}</span>}
                     </span>
                     <span className="shrink-0 text-muted tabular-nums">{it.grams}g</span>
                   </li>
@@ -99,7 +99,7 @@ export function MealPlanView({
                   onClick={() => onLogMenu(type, menu.id, scaled.items)}
                   disabled={logged}
                   className={`flex-1 py-1.5 rounded-full text-[12px] transition ${
-                    logged ? 'bg-line text-muted/60' : 'bg-clay text-white hover:bg-clay/90 active:scale-95'
+                    logged ? 'bg-line text-muted-weak' : 'bg-clay text-white hover:bg-clay/90 active:scale-95'
                   }`}
                 >
                   {logged ? `✓ 已记录 ${scaled.items.length} 项` : '按菜单记录'}
@@ -111,11 +111,11 @@ export function MealPlanView({
       </div>
 
       {usingBase ? (
-        <p className="mt-3 px-1 text-[11px] text-muted/70 leading-relaxed">
+        <p className="mt-3 px-1 text-[11px] text-muted-weak leading-relaxed">
           菜单按 {BASE_KCAL} kcal 基准展示，在「身体」页补全资料后自动按你的目标缩放；热量为食材近似值，未计烹调用油，以少油为准
         </p>
       ) : (
-        <p className="mt-3 px-1 text-[11px] text-muted/70 leading-relaxed">
+        <p className="mt-3 px-1 text-[11px] text-muted-weak leading-relaxed">
           菜单克数按{isToday ? '今天' : '当天'}目标 {target} kcal 自动缩放；热量为食材近似值，未计烹调用油，以少油为准。重复点「按菜单记录」会重复写入，可在「记录」里单条删除
         </p>
       )}

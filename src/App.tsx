@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { PhoneFrame } from './components/PhoneFrame'
+import { BodyIcon, DietIcon, RecordIcon, StatsIcon, TodayIcon } from './components/icons'
 import { TodayTab } from './tabs/TodayTab'
 import { RecordTab } from './tabs/RecordTab'
 import { DietTab } from './tabs/DietTab'
@@ -182,7 +183,7 @@ export default function App() {
 
   return (
     <PhoneFrame>
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col pt-[env(safe-area-inset-top)]">
         <main ref={mainRef} className="flex-1 overflow-y-auto">
           {tab === 'today' && (
             <TodayTab
@@ -220,12 +221,12 @@ export default function App() {
           )}
         </main>
 
-        <nav className="flex border-t border-line bg-paper">
-          <TabButton active={tab === 'today'} onClick={() => setTab('today')} label="今天" icon="🏠" />
-          <TabButton active={tab === 'record'} onClick={() => setTab('record')} label="记录" icon="✍️" />
-          <TabButton active={tab === 'diet'} onClick={() => setTab('diet')} label="饮食" icon="🍚" />
-          <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon="⚖️" />
-          <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon="📊" />
+        <nav className="flex border-t border-line bg-paper pb-[env(safe-area-inset-bottom)]">
+          <TabButton active={tab === 'today' || tab === 'history'} onClick={() => setTab('today')} label="今天" icon={<TodayIcon />} />
+          <TabButton active={tab === 'record'} onClick={() => setTab('record')} label="记录" icon={<RecordIcon />} />
+          <TabButton active={tab === 'diet'} onClick={() => setTab('diet')} label="饮食" icon={<DietIcon />} />
+          <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon={<BodyIcon />} />
+          <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon={<StatsIcon />} />
         </nav>
       {achQueue.length > 0 && <Celebration queue={achQueue} onClose={() => setAchQueue([])} />}
       </div>
@@ -233,13 +234,15 @@ export default function App() {
   )
 }
 
-function TabButton({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: string }) {
+function TabButton({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: ReactNode }) {
   return (
     <button
       onClick={onClick}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
       className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] transition ${active ? 'text-clay' : 'text-muted'}`}
     >
-      <span className="text-[18px] leading-none">{icon}</span>
+      <span className="leading-none">{icon}</span>
       {label}
       <span className={`h-1 w-1 rounded-full ${active ? 'bg-clay' : 'bg-transparent'}`} />
     </button>

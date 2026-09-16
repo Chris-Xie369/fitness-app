@@ -222,12 +222,12 @@ export function HistoryTab({
           <div className="flex items-center justify-between">
             <button
               onClick={() => setMonthCursor(new Date(calYear, calMonth - 1, 1))}
-              className="h-7 w-7 rounded-full border border-line text-muted hover:text-clay"
+              className="h-7 w-7 -m-1.5 p-1.5 box-content rounded-full border border-line text-muted hover:text-clay"
             >‹</button>
             <p className="font-display text-[15px] text-ink">{calYear} 年 {calMonth + 1} 月</p>
             <button
               onClick={() => setMonthCursor(new Date(calYear, calMonth + 1, 1))}
-              className="h-7 w-7 rounded-full border border-line text-muted hover:text-clay"
+              className="h-7 w-7 -m-1.5 p-1.5 box-content rounded-full border border-line text-muted hover:text-clay"
             >›</button>
           </div>
           <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] text-muted">
@@ -240,7 +240,7 @@ export function HistoryTab({
                   key={i}
                   onClick={() => setPickedDate(date)}
                   className={`aspect-square rounded-lg text-[12px] flex flex-col items-center justify-center transition
-                    ${pickedDate === date ? 'bg-clay text-white' : trainedDates.has(date) ? 'bg-clay/10 text-ink' : 'text-muted/60 hover:bg-paper'}
+                    ${pickedDate === date ? 'bg-clay text-white' : trainedDates.has(date) ? 'bg-clay/10 text-ink' : 'text-muted-weak hover:bg-paper'}
                     ${date === todayDate ? 'ring-1 ring-clay/50' : ''}`}
                 >
                   {Number(date.slice(8, 10))}
@@ -258,7 +258,7 @@ export function HistoryTab({
         <div className="mt-3">
           <div className="flex items-center justify-between">
             <p className="font-display text-[14px] text-ink">{formatDate(pickedDate)}</p>
-            <button onClick={() => setPickedDate(null)} className="text-[12px] text-muted/60 hover:text-clay">清除选择</button>
+            <button onClick={() => setPickedDate(null)} className="text-[12px] text-muted-weak hover:text-clay">清除选择</button>
           </div>
           {pickedWorkout ? (
             <ul className="mt-2 space-y-1">
@@ -277,7 +277,10 @@ export function HistoryTab({
       )}
 
       {view === 'list' && workouts.length === 0 ? (
-        <p className="mt-12 text-center text-[14px] text-muted">还没有记录。去「记录」页练一次吧。</p>
+        <div className="mt-12 text-center">
+          <p className="text-[14px] text-muted">还没有记录。</p>
+          <button onClick={onBack} className="mt-3 px-4 py-2 rounded-full bg-clay text-white text-[13px]">去练第一次</button>
+        </div>
       ) : view === 'list' ? (
         <ul className="mt-5 space-y-4">
           {workouts.map((w) => (
@@ -297,7 +300,7 @@ export function HistoryTab({
                 {confirmId === w.id ? (
                   <span className="flex items-center gap-2 text-[12px] whitespace-nowrap">
                     <button onClick={() => onDelete(w.id)} className="text-clay">确认删除整天？</button>
-                    <button onClick={() => setConfirmId(null)} className="text-muted/60">取消</button>
+                    <button onClick={() => setConfirmId(null)} className="text-muted-weak">取消</button>
                   </span>
                 ) : (
                   <button onClick={() => setConfirmId(w.id)} className="-m-2 p-2 text-muted/50 hover:text-clay text-sm">删除整天</button>
@@ -318,21 +321,21 @@ export function HistoryTab({
                               onChange={(e) => setDraft(i, 'reps', e.target.value)}
                               inputMode="numeric"
                               placeholder="次数"
-                              className="w-16 px-2 py-1 rounded-lg border border-line bg-surface text-[13px] focus:outline-none focus:border-clay"
+                              className="w-16 px-2 py-1 rounded-lg border border-line bg-surface text-base focus:outline-none focus:border-clay"
                             />
                             <input
                               value={d.weight}
                               onChange={(e) => setDraft(i, 'weight', e.target.value)}
                               inputMode="decimal"
                               placeholder="kg"
-                              className="w-16 px-2 py-1 rounded-lg border border-line bg-surface text-[13px] focus:outline-none focus:border-clay"
+                              className="w-16 px-2 py-1 rounded-lg border border-line bg-surface text-base focus:outline-none focus:border-clay"
                             />
                           </div>
                         ))}
                       </div>
                       {editError && <p className="mt-2 text-[12px] text-clay">每组次数都要大于 0；想删整组请用列表右侧的 ✕</p>}
                       <div className="mt-2 flex justify-end gap-3 text-[12px]">
-                        <button onClick={() => { setEditingId(null); setEditError(false) }} className="text-muted/60 hover:text-ink">取消</button>
+                        <button onClick={() => { setEditingId(null); setEditError(false) }} className="text-muted-weak hover:text-ink">取消</button>
                         <button onClick={() => saveEdit(w.id, ex.id!)} className="text-clay font-medium">保存修改</button>
                       </div>
                     </li>
@@ -348,7 +351,7 @@ export function HistoryTab({
                       <button
                         onClick={() => ex.id && onRemoveExercise(w.id, ex.id)}
                         aria-label={`删除 ${ex.name}`}
-                        className="-m-2.5 p-2.5 shrink-0 leading-none text-muted/40 hover:text-clay text-sm"
+                        className="-m-2.5 p-2.5 shrink-0 leading-none text-muted/50 hover:text-clay text-sm"
                       >
                         ✕
                       </button>

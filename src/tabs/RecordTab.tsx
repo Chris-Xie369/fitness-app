@@ -244,11 +244,11 @@ export function RecordTab({
             {restTimer.mmss(restTimer.remaining)}
           </span>
           <button onClick={() => restTimer.addSecs(15)} className="h-8 w-8 rounded-full border border-line text-muted text-sm hover:text-clay">+15s</button>
-          <button onClick={restTimer.skip} className="ml-1 text-[12px] text-muted/60 hover:text-clay">跳过</button>
+          <button onClick={restTimer.skip} className="ml-1 text-[12px] text-muted-weak hover:text-clay">跳过</button>
         </div>
       ) : (
         <div className="mt-3 flex items-center justify-center gap-1.5">
-          <span className="text-[11px] text-muted/70 mr-0.5">⏱ 休息</span>
+          <span className="text-[11px] text-muted-weak mr-0.5">⏱ 休息</span>
           {[60, 90, 120, 180].map((sec) => (
             <button key={sec} onClick={() => restTimer.start(sec)} className="px-2 py-0.5 rounded-full border border-line text-[11px] text-muted hover:border-clay/50 hover:text-clay">
               {sec}s
@@ -270,7 +270,7 @@ export function RecordTab({
                 <button
                   onClick={() => onDeleteRoutine(r.id)}
                   aria-label={`删除模板 ${r.name}`}
-                  className="-my-1.5 -mr-1.5 py-1.5 px-2 text-muted/40 hover:text-clay"
+                  className="-my-1.5 -mr-1.5 py-1.5 px-2 text-muted/50 hover:text-clay"
                 >
                   ✕
                 </button>
@@ -297,7 +297,7 @@ export function RecordTab({
                   onChange={(e) => setName(ex.id, e.target.value)}
                   list="exercise-names"
                   placeholder={`动作 ${exIdx + 1}（如：卧推）`}
-                  className="flex-1 px-3 py-2 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                  className="flex-1 px-3 py-2 rounded-xl border border-line bg-paper text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                 />
                 {exercises.length > 1 && (
                   <button onClick={() => removeExercise(ex.id)} className="text-muted/50 hover:text-clay text-sm">删除</button>
@@ -339,7 +339,7 @@ export function RecordTab({
                     <button
                       onClick={() => toggleSetDone(ex.id, sIdx)}
                       aria-label={`完成第 ${sIdx + 1} 组`}
-                      className={`h-6 w-6 shrink-0 rounded-full border text-[12px] transition ${s.done ? 'bg-clay border-clay text-white' : 'border-line text-transparent hover:border-clay'}`}
+                      className={`h-7 w-7 shrink-0 -m-1.5 p-1.5 box-content rounded-full border text-[12px] transition ${s.done ? 'bg-clay border-clay text-white' : 'border-line text-transparent hover:border-clay'}`}
                     >
                       ✓
                     </button>
@@ -349,14 +349,14 @@ export function RecordTab({
                       onChange={(e) => updateSet(ex.id, sIdx, 'reps', e.target.value)}
                       inputMode="numeric"
                       placeholder="次数"
-                      className="w-16 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                      className="w-16 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                     />
                     <input
                       value={s.weight}
                       onChange={(e) => updateSet(ex.id, sIdx, 'weight', e.target.value)}
                       inputMode="decimal"
                       placeholder="kg"
-                      className="w-16 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                      className="w-16 px-2 py-1.5 rounded-xl border border-line bg-paper text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                     />
                     {has1RM && <span className="text-[10px] text-muted w-12 shrink-0">1RM {estimate1RM({ reps: repsN, weight: weightN })}</span>}
                     {ex.sets.length > 1 && (
@@ -383,10 +383,10 @@ export function RecordTab({
               onKeyDown={(e) => e.key === 'Enter' && saveAsTemplate()}
               placeholder="模板名，如：推日"
               autoFocus
-              className="w-32 px-2 py-1.5 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
+              className="w-32 px-2 py-1.5 rounded-lg border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay"
             />
             <button onClick={saveAsTemplate} className="text-[13px] text-clay hover:underline">保存</button>
-            <button onClick={() => setSavingTemplate(false)} className="text-[13px] text-muted/60 hover:underline">取消</button>
+            <button onClick={() => setSavingTemplate(false)} className="text-[13px] text-muted-weak hover:underline">取消</button>
           </span>
         ) : (
           <button
@@ -408,7 +408,7 @@ export function RecordTab({
           onChange={(e) => setNote(e.target.value)}
           maxLength={50}
           placeholder="备注（可选，如：状态差 / PR 了）"
-          className="mt-5 w-full px-3 py-2.5 rounded-xl border border-line bg-surface text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+          className="mt-5 w-full px-3 py-2.5 rounded-xl border border-line bg-surface text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
         />
       )}
 

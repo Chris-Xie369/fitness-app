@@ -120,7 +120,7 @@ export function BodyTab({
           </button>
         ))}
       </div>
-      <p className="mt-2 text-center text-[11px] text-muted/80">{meta.hint}</p>
+      <p className="mt-2 text-center text-[11px] text-muted">{meta.hint}</p>
 
       {/* 录入 */}
       <div className="mt-5 flex gap-2">
@@ -130,7 +130,7 @@ export function BodyTab({
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           inputMode="decimal"
           placeholder={`今天的${meta.label}（${meta.placeholder}）`}
-          className="flex-1 px-4 py-3 rounded-xl border border-line bg-paper text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+          className="flex-1 px-4 py-3 rounded-xl border border-line bg-paper text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
         />
         <button
           onClick={handleSave}
@@ -142,6 +142,12 @@ export function BodyTab({
       </div>
 
       {/* 当前值 */}
+      {!latest && (
+        <div className="mt-5 rounded-2xl bg-surface border border-dashed border-line p-5 text-center">
+          <p className="text-[13px] text-muted leading-relaxed">记录第一笔体重后，这里会出现趋势曲线和 BMI / 基础代谢等派生数据</p>
+          <p className="mt-1 text-[11px] text-muted-weak">先在下方「身体资料」填身高和出生年，热量目标准备好了</p>
+        </div>
+      )}
       {latest && (
         <div className="mt-5 rounded-2xl bg-surface border border-line p-5 text-center">
           <p className="font-display text-[14px] text-muted">最近记录 · {latest.date}</p>
@@ -149,7 +155,7 @@ export function BodyTab({
             {latest.value}<span className="text-[18px] text-muted"> {meta.unit}</span>
           </p>
           {prev && (
-            <p className={`mt-2 text-[13px] ${latest.value - prev.value > 0 ? 'text-ink/60' : 'text-clay'}`}>
+            <p className={`mt-2 text-[13px] ${latest.value - prev.value > 0 ? 'text-muted' : 'text-clay'}`}>
               较上次 {latest.value - prev.value > 0 ? '+' : ''}{Math.round((latest.value - prev.value) * 10) / 10} {meta.unit}
             </p>
           )}
@@ -201,14 +207,14 @@ export function BodyTab({
                 onChange={(e) => setProfileDraft({ ...profileDraft, heightCm: e.target.value })}
                 inputMode="numeric"
                 placeholder="身高 cm"
-                className="w-24 px-3 py-2 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
+                className="w-24 px-3 py-2 rounded-lg border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay"
               />
               <input
                 value={profileDraft.birthYear}
                 onChange={(e) => setProfileDraft({ ...profileDraft, birthYear: e.target.value })}
                 inputMode="numeric"
                 placeholder="出生年"
-                className="w-24 px-3 py-2 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
+                className="w-24 px-3 py-2 rounded-lg border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay"
               />
             </div>
             <div className="flex items-center justify-between">
@@ -261,7 +267,7 @@ export function BodyTab({
                 <span className="text-[14px] text-ink">{e.date}</span>
                 <span className="flex items-center gap-3">
                   <span className="text-[14px] text-muted">{e.value} {meta.unit}</span>
-                  <button onClick={() => onDeleteMetric(e.id)} className="text-muted/40 hover:text-clay text-sm">✕</button>
+                  <button onClick={() => onDeleteMetric(e.id)} className="text-muted/50 hover:text-clay text-sm">✕</button>
                 </span>
               </li>
             ))}
