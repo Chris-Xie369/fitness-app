@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import type { AppSettings, MealEntry, MealType, MetricEntry, WaterEntry, Workout } from '../types'
-import { dayKcal, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
+import { dayKcal, learnedKcal, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
+import { kcalFor, searchFoods } from '../lib/foods'
 import { ageFromBirthYear, bmrMifflin } from '../lib/body'
 import { ACTIVITY_LEVELS, calorieTarget, dayAdvice, PACE_OPTIONS, TRAINING_DAY_BONUS, weekAdherence, type DietGoal } from '../lib/nutrition'
 import { last7Glasses } from '../lib/goals'
@@ -18,12 +19,16 @@ function token(name: string, fallback: string): string {
   return v || fallback
 }
 
-type Draft = { name: string; kcal: string }
-const emptyDraft: Record<MealType, Draft> = {
-  breakfast: { name: '', kcal: '' },
-  lunch: { name: '', kcal: '' },
-  dinner: { name: '', kcal: '' },
-  snack: { name: '', kcal: '' },
+type PickedFood = { name: string; kcalPer100g: number; learned?: boolean }
+type Draft = { name: string; kcal: string; grams: string; picked: PickedFood | null }
+// 用工厂而不是共享常量：draft 内含嵌套对象，重置时每次给全新副本
+function freshDrafts(): Record<MealType, Draft> {
+  return {
+    breakfast: { name: '', kcal: '', grams: '', picked: null },
+    lunch: { name: '', kcal: '', grams: '', picked: null },
+    dinner: { name: '', kcal: '', grams: '', picked: null },
+    snack: { name: '', kcal: '', grams: '', picked: null },
+  }
 }
 
 function KcalTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { date: string; kcal: number } }> }) {
@@ -99,7 +104,9 @@ export function DietTab({
       )
     : null
   const hasWeekData = week.some((d) => d.kcal > 0)
-  const [drafts, setDrafts] = useState(emptyDraft)
+  const [drafts, setDrafts] = useState(freshDrafts)
+  // 自动补全下拉：一次只开一餐；idx 为键盘高亮
+  const [suggest, setSuggest] = useState<{ meal: MealType; idx: number } | null>(null)
   const [copyConfirm, setCopyConfirm] = useState(false)
   const recent = recentMeals(meals)
   const todayGlasses = water.find((w) => w.date === date)?.glasses ?? 0
@@ -112,7 +119,7 @@ export function DietTab({
 
   function goTo(next: string) {
     setDate(next)
-    setDrafts(emptyDraft)
+    setDrafts(freshDrafts())
     setCopyConfirm(false)
     setLoggedKeys([])
   }
@@ -122,13 +129,38 @@ export function DietTab({
       const next = shiftDate(prev, delta)
       return delta > 0 && next > today ? prev : next
     })
-    setDrafts(emptyDraft)
+    setDrafts(freshDrafts())
     setCopyConfirm(false)
     setLoggedKeys([])
   }
 
-  function setDraft(meal: MealType, field: keyof Draft, value: string) {
-    setDrafts((p) => ({ ...p, [meal]: { ...p[meal], [field]: value } }))
+  function setDraft(meal: MealType, patch: Partial<Draft>) {
+    setDrafts((p) => ({ ...p, [meal]: { ...p[meal], ...patch } }))
+  }
+
+  // 当前餐下拉建议：库内匹配 + 同名历史估算（库内精确命中时不重复显示学到项）
+  function suggestionsFor(meal: MealType): PickedFood[] {
+    const q = drafts[meal].name.trim()
+    if (!q) return []
+    const fromLib: PickedFood[] = searchFoods(q).map((f) => ({ name: f.name, kcalPer100g: f.kcalPer100g }))
+    if (fromLib.some((f) => f.name === q)) return fromLib
+    const learned = learnedKcal(meals, q)
+    if (learned != null && !fromLib.some((f) => f.name === q)) {
+      return [...fromLib, { name: q, kcalPer100g: learned, learned: true }]
+    }
+    return fromLib
+  }
+
+  // 选中某条建议：进入克数模式
+  function pickFood(meal: MealType, food: PickedFood) {
+    setDraft(meal, { name: food.name, picked: food, grams: '', kcal: '' })
+    setSuggest(null)
+  }
+
+  // 克数模式：名称与所选食物一致时生效；改名后自动回退大卡模式
+  function gramsMode(meal: MealType): PickedFood | null {
+    const d = drafts[meal]
+    return d.picked && d.picked.name === d.name.trim() ? d.picked : null
   }
 
   // 单条食物热量上限：超过 1 万大卡基本是输错了
@@ -136,6 +168,11 @@ export function DietTab({
 
   function canAdd(meal: MealType): boolean {
     const d = drafts[meal]
+    const picked = gramsMode(meal)
+    if (picked) {
+      const g = Number(d.grams)
+      return Number.isFinite(g) && g > 0
+    }
     if (!d.name.trim() || !d.kcal) return false
     const k = Number(d.kcal)
     // 先取整再判正：0.4 大卡 round 后是 0，不该产生一条 0 kcal 记录
@@ -144,19 +181,59 @@ export function DietTab({
 
   function add(meal: MealType) {
     if (!canAdd(meal)) return
-    onAdd({
-      id: uid(),
-      date,
-      meal,
-      name: drafts[meal].name.trim(),
-      kcal: Math.round(Number(drafts[meal].kcal)),
-      createdAt: Date.now(),
-    })
-    setDrafts((p) => ({ ...p, [meal]: { name: '', kcal: '' } }))
+    const d = drafts[meal]
+    const picked = gramsMode(meal)
+    if (picked) {
+      const grams = Math.round(Number(d.grams) * 10) / 10
+      onAdd({
+        id: uid(),
+        date,
+        meal,
+        name: `${picked.name} ${grams}g`,
+        kcal: kcalFor(picked.kcalPer100g, grams),
+        createdAt: Date.now(),
+      })
+    } else {
+      onAdd({
+        id: uid(),
+        date,
+        meal,
+        name: d.name.trim(),
+        kcal: Math.round(Number(d.kcal)),
+        createdAt: Date.now(),
+      })
+    }
+    setDrafts((p) => ({ ...p, [meal]: { name: '', kcal: '', grams: '', picked: null } }))
+    setSuggest(null)
   }
 
   function applyRecent(meal: MealType, name: string, kcal: number) {
-    setDrafts((p) => ({ ...p, [meal]: { name, kcal: String(kcal) } }))
+    setDraft(meal, { name, kcal: String(kcal), grams: '', picked: null })
+    setSuggest(null)
+  }
+
+  // 名字输入框键盘：下拉打开时 ↑↓ 移动、Enter 选中；否则 Enter 添加
+  function nameKeyDown(meal: MealType, e: React.KeyboardEvent<HTMLInputElement>) {
+    const list = suggestionsFor(meal)
+    if (suggest?.meal === meal && list.length > 0) {
+      const idx = suggest.idx
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSuggest({ meal, idx: (idx + 1) % list.length })
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSuggest({ meal, idx: (idx - 1 + list.length) % list.length })
+        return
+      }
+      if (e.key === 'Enter' && idx >= 0 && idx < list.length) {
+        e.preventDefault()
+        pickFood(meal, list[idx])
+        return
+      }
+    }
+    if (e.key === 'Enter') add(meal)
   }
 
   // 复制前一天的全部饮食到当前选中日期（目标已有记录时需二次点击确认）
@@ -367,6 +444,11 @@ export function DietTab({
         {MEAL_TYPES.map(({ type, label, emoji }) => {
           const items = dayMeals.filter((m) => m.meal === type)
           const subtotal = items.reduce((n, m) => n + m.kcal, 0)
+          const d = drafts[type]
+          const picked = gramsMode(type)
+          const suggestions = suggest?.meal === type ? suggestionsFor(type) : []
+          const gramsNum = picked ? Number(d.grams) : NaN
+          const gramsWarn = picked && Number.isFinite(gramsNum) && gramsNum > 2000
           return (
             <div key={type} className="rounded-2xl bg-surface border border-line p-4">
               <div className="flex items-center justify-between">
@@ -388,7 +470,7 @@ export function DietTab({
                 </ul>
               )}
 
-              {!drafts[type].name && recent.length > 0 && (
+              {!d.name && suggest?.meal !== type && recent.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {recent.slice(0, 6).map((r) => (
                     <button
@@ -402,34 +484,75 @@ export function DietTab({
                 </div>
               )}
 
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  value={drafts[type].name}
-                  onChange={(e) => setDraft(type, 'name', e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && add(type)}
-                  placeholder="食物（如：鸡蛋）"
-                  className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
-                />
-                <input
-                  value={drafts[type].kcal}
-                  onChange={(e) => setDraft(type, 'kcal', e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && add(type)}
-                  inputMode="numeric"
-                  placeholder="大卡"
-                  className="w-16 px-2 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
-                />
-                <button
-                  onClick={() => add(type)}
-                  disabled={!canAdd(type)}
-                  className={`shrink-0 w-9 h-9 rounded-xl text-[18px] leading-none transition ${
-                    canAdd(type)
-                      ? 'bg-clay text-white hover:bg-clay/90 active:scale-95'
-                      : 'bg-line text-muted/60'
-                  }`}
-                >
-                  ＋
-                </button>
+              <div className="relative mt-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={d.name}
+                    onChange={(e) => {
+                      setDraft(type, { name: e.target.value })
+                      setSuggest({ meal: type, idx: 0 })
+                    }}
+                    onFocus={() => d.name.trim() && setSuggest({ meal: type, idx: suggest?.meal === type ? suggest.idx : 0 })}
+                    onBlur={() => setTimeout(() => setSuggest((s) => (s?.meal === type ? null : s)), 120)}
+                    onKeyDown={(e) => nameKeyDown(type, e)}
+                    placeholder="食物（如：鸡胸肉）"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                  />
+                  {picked ? (
+                    <input
+                      value={d.grams}
+                      onChange={(e) => setDraft(type, { grams: e.target.value })}
+                      onKeyDown={(e) => e.key === 'Enter' && add(type)}
+                      inputMode="decimal"
+                      placeholder="克数"
+                      className="w-16 px-3 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                    />
+                  ) : (
+                    <input
+                      value={d.kcal}
+                      onChange={(e) => setDraft(type, { kcal: e.target.value })}
+                      onKeyDown={(e) => e.key === 'Enter' && add(type)}
+                      inputMode="numeric"
+                      placeholder="大卡"
+                      className="w-16 px-3 py-2 rounded-xl border border-line bg-paper text-[14px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                    />
+                  )}
+                  <button
+                    onClick={() => add(type)}
+                    disabled={!canAdd(type)}
+                    className={`shrink-0 w-9 h-9 rounded-xl text-[18px] leading-none transition ${
+                      canAdd(type)
+                        ? 'bg-clay text-white hover:bg-clay/90 active:scale-95'
+                        : 'bg-line text-muted/60'
+                    }`}
+                  >
+                    ＋
+                  </button>
+                </div>
+
+                {/* 自动补全下拉：绝对定位浮在卡片内，不顶动布局 */}
+                {suggestions.length > 0 && (
+                  <ul className="absolute z-10 left-0 right-16 top-[42px] rounded-xl border border-line bg-surface shadow-lg overflow-hidden">
+                    {suggestions.map((s, i) => (
+                      <li key={s.name}>
+                        <button
+                          onMouseDown={(e) => { e.preventDefault(); pickFood(type, s) }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-[13px] ${suggest?.idx === i ? 'bg-clay/10 text-clay' : 'text-ink'}`}
+                        >
+                          <span className="truncate">{s.name}{s.learned && <span className="ml-1 text-[11px] text-muted">上次估算</span>}</span>
+                          <span className="ml-2 shrink-0 text-muted tabular-nums">{s.kcalPer100g}/100g</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
+
+              {picked && Number.isFinite(gramsNum) && gramsNum > 0 && (
+                <p className={`mt-1 pl-1 text-[12px] ${gramsWarn ? 'text-clay' : 'text-muted'}`}>
+                  ≈ {kcalFor(picked.kcalPer100g, gramsNum)} kcal{gramsWarn ? ' · 克数偏大，确认单位是克？' : ''}
+                </p>
+              )}
             </div>
           )
         })}
