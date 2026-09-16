@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import type { AppSettings, MealEntry, MealType, MetricEntry, WaterEntry, Workout } from '../types'
-import { dayKcal, learnedKcal, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
+import { dayKcal, dayMacros, learnedKcal, macrosOf, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
 import { kcalFor, searchFoods } from '../lib/foods'
 import { ageFromBirthYear, bmrMifflin } from '../lib/body'
 import { ACTIVITY_LEVELS, calorieTarget, dayAdvice, PACE_OPTIONS, TRAINING_DAY_BONUS, weekAdherence, type DietGoal } from '../lib/nutrition'
@@ -10,7 +10,7 @@ import { dayLabel, shiftDate } from '../lib/date'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
 import { MealPlanView } from '../components/MealPlanView'
-import type { ScaledItem } from '../lib/mealplan'
+import { macroTargets, type ScaledItem } from '../lib/mealplan'
 
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
@@ -93,6 +93,8 @@ export function DietTab({
     : null
   const goalLabel = goal === 'lose' ? '减脂' : goal === 'gain' ? '增肌' : '维持'
   const advice = targetInfo ? dayAdvice(total, targetInfo.target, isToday) : ''
+  const macrosToday = dayMacros(meals, date)
+  const macroTargetsInfo = targetInfo && latestWeight ? macroTargets(latestWeight, goal, targetInfo.target) : null
   const workoutDateSet = new Set(workouts.map((w) => w.date))
   // 周建议只在看今天时显示；按每天自己的目标（训练日 +200）评估，至少 3 天记录
   const weekTip = targetInfo && isToday
@@ -411,6 +413,11 @@ export function DietTab({
             <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/50' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
           </div>
           <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
+          <p className="mt-2 text-[11px] text-muted/80 tabular-nums">
+            今日 · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
+            {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
+            {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
+          </p>
           {targetInfo.clamped && goal === 'lose' && (
             <p className="mt-1 text-[11px] text-clay">目标已按安全下限调整（{settings.sex === 'male' ? 1500 : 1200} kcal），建议放慢速度</p>
           )}
@@ -422,6 +429,11 @@ export function DietTab({
             {total}<span className="text-[20px] text-muted"> kcal</span>
           </p>
           <p className="mt-2 text-[11px] text-muted/80">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
+          <p className="mt-2 text-[11px] text-muted/80 tabular-nums">
+            今日 · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
+            {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
+            {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
+          </p>
         </div>
       )}
       {weekTip && <p className="mt-2 px-1 text-[12px] text-ink/70">📊 {weekTip}</p>}
@@ -474,6 +486,11 @@ export function DietTab({
                     <li key={m.id} className="flex items-center justify-between text-[14px]">
                       <span className="text-ink">{m.name}</span>
                       <span className="flex items-center gap-2">
+                        {(() => {
+                          const g = m.name.trim().match(/^(.*?)\s*(\d+(?:\.\d+)?)g$/)
+                          const mac = g ? macrosOf(m.name, Number(g[2])) : null
+                          return mac ? <span className="text-[10px] text-muted/70 tabular-nums">P{mac.p}·C{mac.c}·F{mac.f}</span> : null
+                        })()}
                         <span className="text-muted">{m.kcal} kcal</span>
                         <button onClick={() => onDelete(m.id)} className="-m-3 p-3 leading-none text-muted/50 hover:text-clay text-sm">✕</button>
                       </span>
