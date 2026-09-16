@@ -61,6 +61,7 @@ export function MealPlanView({
           </div>
         )}
         <p className="mt-2 text-[11px] text-muted">💧 饮水目标 {waterGoal} 杯（切换到「记录」打卡）</p>
+        <p className="mt-1 text-[10px] text-muted-weak">P 蛋白 · C 碳水 · F 脂肪（g/天目标）</p>
       </div>
 
       {/* 四餐菜单 */}

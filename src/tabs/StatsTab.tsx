@@ -259,7 +259,8 @@ export function StatsTab({
       {/* 个人记录（历史最重一组） */}
       {prs.length > 0 && (
         <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-          <p className="font-display text-[13px] italic text-muted mb-2">个人记录 · 历史最重</p>
+          <p className="font-display text-[13px] italic text-muted mb-1">个人记录 · 历史最重</p>
+          <p className="text-[10px] text-muted-weak mb-2">1RM = 最多只能举起 1 次的估算重量，用来衡量力量进步</p>
           <ul className="space-y-1.5">
             {prs.map((pr) => (
               <li key={pr.name}>

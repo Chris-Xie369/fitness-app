@@ -114,6 +114,11 @@ export default function App() {
     )
   }
 
+  // 修改某天训练的备注
+  function updateWorkoutNote(workoutId: string, note: string) {
+    setWorkouts((prev) => prev.map((w) => (w.id === workoutId ? { ...w, note: note.trim() || undefined } : w)))
+  }
+
   function addMeal(m: MealEntry) {
     setMeals((prev) => [m, ...prev])
   }
@@ -217,7 +222,7 @@ export default function App() {
           )}
           {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} settings={settings} onUpdateSettings={updateSettings} />}
           {tab === 'history' && (
-            <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+            <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
           )}
         </main>
 

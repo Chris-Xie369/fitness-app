@@ -27,6 +27,17 @@ export function lastSetsFor(workouts: Workout[], name: string): SetEntry[] {
   return []
 }
 
+
+// 新手常见动作（无历史时的快捷选择，按训练大项排序）
+export const COMMON_EXERCISES: string[] = [
+  '卧推', '深蹲', '硬拉', '推举', '划船',
+  '引体向上', '俯卧撑', '平板支撑', '箭步蹲', '臀桥',
+  '哑铃卧推', '哑铃弯举', '绳索下压', '高位下拉', '坐姿划船',
+  '腿举', '腿弯举', '腿屈伸', '罗马尼亚硬拉', '坐姿肩推',
+  '侧平举', '面拉', '卷腹', '山羊挺身', '农夫行走',
+  '二头弯举', '三头臂屈伸', '夹胸', '髋外展', '提踵',
+]
+
 // 把组数据格式化成简短文案，如「60kg × 10 · 60kg × 8 · 10 次」
 export function formatSets(sets: SetEntry[]): string {
   return sets.map((s) => (s.weight ? `${s.weight}kg × ${s.reps}` : `${s.reps} 次`)).join(' · ')

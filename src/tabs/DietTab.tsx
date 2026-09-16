@@ -418,6 +418,7 @@ export function DietTab({
             {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
             {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
           </p>
+          <p className="mt-1 text-[10px] text-muted-weak">P 蛋白 · C 碳水 · F 脂肪（库外食物只计热量）</p>
           {targetInfo.clamped && goal === 'lose' && (
             <p className="mt-1 text-[11px] text-clay">目标已按安全下限调整（{settings.sex === 'male' ? 1500 : 1200} kcal），建议放慢速度</p>
           )}
@@ -434,6 +435,7 @@ export function DietTab({
             {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
             {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
           </p>
+          <p className="mt-1 text-[10px] text-muted-weak">P 蛋白 · C 碳水 · F 脂肪（库外食物只计热量）</p>
         </div>
       )}
       {weekTip && <p className="mt-2 px-1 text-[12px] text-ink/70">📊 {weekTip}</p>}

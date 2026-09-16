@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { Exercise, Routine, SetEntry, Workout } from '../types'
 import { todayStr } from '../lib/streak'
 import { dayLabel, shiftDate } from '../lib/date'
-import { formatSets, lastSetsFor, recentExerciseNames } from '../lib/exercises'
+import { COMMON_EXERCISES, formatSets, lastSetsFor, recentExerciseNames } from '../lib/exercises'
+import { nextSuggestion } from '../lib/progression'
 import { estimate1RM } from '../lib/pr'
 import type { RestTimerApi } from '../hooks/useRestTimer'
 import { validExercises } from '../lib/routines'
@@ -137,6 +138,23 @@ export function RecordTab({
     )
   }
 
+  // 应用渐进超负荷建议：把建议的次数/重量填进当前所有组（组数保持不变）
+  function applySuggestion(id: string, suggested: { reps: number; weight?: number }[]) {
+    if (isToday) onBeginWorkout()
+    setExercises((p) =>
+      p.map((e) => {
+        if (e.id !== id) return e
+        return {
+          ...e,
+          sets: e.sets.map((s, i) => {
+            const sug = suggested[Math.min(i, suggested.length - 1)]
+            return { ...s, reps: String(sug.reps), weight: sug.weight ? String(sug.weight) : '' }
+          }),
+        }
+      }),
+    )
+  }
+
   // 表单是否填了内容（载入模板前判断要不要二次确认覆盖）
   function formDirty(): boolean {
     return exercises.some((e) => e.name.trim() || e.sets.some((s) => s.reps || s.weight))
@@ -239,12 +257,18 @@ export function RecordTab({
       {/* 组间休息计时 */}
       {restTimer.remaining !== null ? (
         <div className="mt-3 flex items-center justify-center gap-2">
-          <button onClick={() => restTimer.addSecs(-15)} className="h-8 w-8 rounded-full border border-line text-muted text-sm hover:text-clay">-15s</button>
-          <span className="font-display text-[22px] text-clay min-w-[64px] text-center tabular-nums">
-            {restTimer.mmss(restTimer.remaining)}
-          </span>
-          <button onClick={() => restTimer.addSecs(15)} className="h-8 w-8 rounded-full border border-line text-muted text-sm hover:text-clay">+15s</button>
-          <button onClick={restTimer.skip} className="ml-1 text-[12px] text-muted-weak hover:text-clay">跳过</button>
+          {restTimer.finished ? (
+            <span className="font-display text-[20px] text-clay min-w-[120px] text-center">休息结束 ✓</span>
+          ) : (
+            <>
+              <button onClick={() => restTimer.addSecs(-15)} aria-label="减少 15 秒" className="h-8 w-8 -m-1 p-1 box-content rounded-full border border-line text-muted text-sm hover:text-clay">-15s</button>
+              <span className="font-display text-[22px] text-clay min-w-[64px] text-center tabular-nums">
+                {restTimer.mmss(restTimer.remaining)}
+              </span>
+              <button onClick={() => restTimer.addSecs(15)} aria-label="增加 15 秒" className="h-8 w-8 -m-1 p-1 box-content rounded-full border border-line text-muted text-sm hover:text-clay">+15s</button>
+              <button onClick={restTimer.skip} className="ml-1 text-[12px] text-muted-weak hover:text-clay">跳过</button>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-3 flex items-center justify-center gap-1.5">
@@ -304,10 +328,10 @@ export function RecordTab({
                 )}
               </div>
 
-              {/* 历史动作快捷选择 */}
-              {!ex.name.trim() && recent.length > 0 && (
+              {/* 历史动作快捷选择；无历史时显示常见动作 */}
+              {!ex.name.trim() && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {recent.map((n) => (
+                  {recent.length > 0 ? recent.map((n) => (
                     <button
                       key={n}
                       onClick={() => applyHistory(ex.id, n)}
@@ -315,17 +339,45 @@ export function RecordTab({
                     >
                       {n}
                     </button>
-                  ))}
+                  )) : (
+                    <>
+                      {COMMON_EXERCISES.slice(0, 8).map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => applyHistory(ex.id, n)}
+                          className="px-2.5 py-1 rounded-full bg-paper border border-dashed border-line text-[12px] text-muted hover:border-clay/50 hover:text-clay transition"
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
+              {!ex.name.trim() && recent.length === 0 && (
+                <p className="mt-1 text-[10px] text-muted-weak">新手常练这 8 个动作，点名字直接用</p>
+              )}
 
-              {/* 匹配到历史记录：提示上次数据，一键带入 */}
+              {/* 匹配到历史记录：提示上次数据，一键带入；旁边给渐进超负荷建议 */}
               {last.length > 0 && (
                 <div className="mt-2 flex items-center justify-between text-[12px]">
                   <span className="text-muted">上次：{formatSets(last)}</span>
-                  {ex.sets.every((s) => !s.reps.trim() && !s.weight.trim()) && (
-                    <button onClick={() => applyHistory(ex.id, ex.name.trim())} className="text-clay hover:underline">带入 ↑</button>
-                  )}
+                  <span className="flex items-center gap-3">
+                    {(() => {
+                      const suggestion = nextSuggestion(last)
+                      return suggestion && ex.sets.every((s) => !s.reps.trim() && !s.weight.trim()) ? (
+                        <button
+                          onClick={() => applySuggestion(ex.id, suggestion.sets)}
+                          className="rounded-full border border-clay/40 px-2 py-0.5 text-clay"
+                        >
+                          {suggestion.label} ↑
+                        </button>
+                      ) : null
+                    })()}
+                    {ex.sets.every((s) => !s.reps.trim() && !s.weight.trim()) && (
+                      <button onClick={() => applyHistory(ex.id, ex.name.trim())} className="text-clay hover:underline">带入 ↑</button>
+                    )}
+                  </span>
                 </div>
               )}
 

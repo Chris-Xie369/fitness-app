@@ -27,6 +27,7 @@ export function HistoryTab({
   onDelete,
   onRemoveExercise,
   onUpdateSets,
+  onUpdateNote,
   onBack,
   onImport,
   lastAdded,
@@ -40,6 +41,7 @@ export function HistoryTab({
   onDelete: (id: string) => void
   onRemoveExercise: (workoutId: string, exerciseId: string) => void
   onUpdateSets: (workoutId: string, exerciseId: string, sets: { reps: number; weight?: number }[]) => void
+  onUpdateNote: (workoutId: string, note: string) => void
   onBack: () => void
   onImport: (data: BackupData) => Promise<{ restored: number; skipped: number } | undefined> | undefined
   lastAdded: { at: number; appended: boolean; count: number; date: string } | null
@@ -55,6 +57,8 @@ export function HistoryTab({
   const [monthCursor, setMonthCursor] = useState(() => new Date())
   const [pickedDate, setPickedDate] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [noteDraft, setNoteDraft] = useState('')
   const [draftSets, setDraftSets] = useState<{ reps: string; weight: string }[]>([])
   const [editError, setEditError] = useState(false)
   const [hintTimes, setHintTimes] = useState(loadBackupHintTimes)
@@ -173,6 +177,15 @@ export function HistoryTab({
     setDraftSets((p) => p.map((d, j) => (j === i ? { ...d, [field]: v } : d)))
   }
 
+  function addDraftSet() {
+    setEditError(false)
+    setDraftSets((p) => [...p, { reps: '', weight: '' }])
+  }
+  function removeDraftSet(i: number) {
+    setEditError(false)
+    setDraftSets((p) => p.filter((_, j) => j !== i))
+  }
+
   function saveEdit(workoutId: string, exerciseId: string) {
     const sets: { reps: number; weight?: number }[] = []
     for (const d of draftSets) {
@@ -186,7 +199,10 @@ export function HistoryTab({
       if (d.weight && !Number.isNaN(w) && w > 0) set.weight = w
       sets.push(set)
     }
-    if (sets.length === 0) return
+    if (sets.length === 0) {
+      setEditError(true)
+      return
+    }
     onUpdateSets(workoutId, exerciseId, sets)
     setEditingId(null)
   }
@@ -295,7 +311,25 @@ export function HistoryTab({
                   <p className="text-[12px] text-muted mt-0.5">
                     {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组{w.durationSec ? ` · ${Math.round(w.durationSec / 60)} 分钟` : ''}
                   </p>
-                  {w.note && <p className="text-[12px] text-ink/70 italic mt-1">“{w.note}”</p>}
+                  {editingNoteId === w.id ? (
+                <div className="mt-1.5 flex gap-1.5">
+                  <input
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    placeholder="备注（状态差 / PR 了）"
+                    className="flex-1 min-w-0 px-2 py-1 rounded-lg border border-line bg-surface text-base italic focus:outline-none focus:border-clay"
+                  />
+                  <button
+                    onClick={() => { onUpdateNote(w.id, noteDraft); setEditingNoteId(null) }}
+                    className="shrink-0 px-2 py-1 text-[12px] text-clay"
+                  >保存</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setEditingNoteId(w.id); setNoteDraft(w.note ?? '') }}
+                  className="block text-left mt-1 text-[12px] text-muted italic hover:text-clay"
+                >{w.note ? `“${w.note}” · 改` : '＋ 备注'}</button>
+              )}
                 </div>
                 {confirmId === w.id ? (
                   <span className="flex items-center gap-2 text-[12px] whitespace-nowrap">
@@ -330,13 +364,19 @@ export function HistoryTab({
                               placeholder="kg"
                               className="w-16 px-2 py-1 rounded-lg border border-line bg-surface text-base focus:outline-none focus:border-clay"
                             />
+                            <button
+                              onClick={() => removeDraftSet(i)}
+                              aria-label={`删除第 ${i + 1} 组`}
+                              className="-m-1.5 p-1.5 shrink-0 text-muted/50 hover:text-clay text-sm"
+                            >✕</button>
                           </div>
                         ))}
                       </div>
-                      {editError && <p className="mt-2 text-[12px] text-clay">每组次数都要大于 0；想删整组请用列表右侧的 ✕</p>}
+                      <button onClick={addDraftSet} className="mt-1.5 text-[12px] text-clay hover:underline">+ 加一组</button>
+                      {editError && <p className="mt-1.5 text-[12px] text-clay">每组次数都要大于 0，且至少保留一组；整组删除直接点行尾 ✕</p>}
                       <div className="mt-2 flex justify-end gap-3 text-[12px]">
                         <button onClick={() => { setEditingId(null); setEditError(false) }} className="text-muted-weak hover:text-ink">取消</button>
-                        <button onClick={() => saveEdit(w.id, ex.id!)} className="text-clay font-medium">保存修改</button>
+                        <button onClick={() => saveEdit(w.id, ex.id!)} disabled={draftSets.length === 0} className="text-clay font-medium disabled:opacity-30">保存修改</button>
                       </div>
                     </li>
                   ) : (
@@ -347,6 +387,7 @@ export function HistoryTab({
                       >
                         {ex.name}
                         <span className="text-muted"> — {ex.sets.map((s) => (s.weight ? `${s.reps}×${s.weight}kg` : `${s.reps}次`)).join('、')}</span>
+                        <span className="ml-1 text-[10px] text-muted-weak border border-line rounded px-1">改</span>
                       </button>
                       <button
                         onClick={() => ex.id && onRemoveExercise(w.id, ex.id)}
