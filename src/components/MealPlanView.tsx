@@ -12,7 +12,7 @@ export function MealPlanView({
   weightKg,
   waterGoal,
   mealChoice,
-  loggedMeal,
+  loggedMenu,
   onChoose,
   onLogMenu,
 }: {
@@ -23,9 +23,9 @@ export function MealPlanView({
   weightKg?: number
   waterGoal: number
   mealChoice: Partial<Record<MealType, number>> | undefined
-  loggedMeal: MealType | null
+  loggedMenu: { meal: MealType; menuId: string } | null
   onChoose: (meal: MealType, index: number) => void
-  onLogMenu: (meal: MealType, items: ScaledItem[]) => void
+  onLogMenu: (meal: MealType, menuId: string, items: ScaledItem[]) => void
 }) {
   // 无身体资料时没有热量目标：菜单按 2000 kcal 基准展示，补全资料后自动按目标缩放
   const usingBase = dayTarget == null
@@ -70,7 +70,7 @@ export function MealPlanView({
           const idx = (mealChoice?.[type] ?? 0) % menus.length
           const menu = menus[idx]
           const scaled = scaleMenu(menu, target)
-          const logged = loggedMeal === type
+          const logged = !!loggedMenu && loggedMenu.meal === type && loggedMenu.menuId === menu.id
           return (
             <div key={type} className="rounded-2xl bg-surface border border-line p-4">
               <div className="flex items-center justify-between">
@@ -96,7 +96,7 @@ export function MealPlanView({
                   ⇄ 换一套
                 </button>
                 <button
-                  onClick={() => onLogMenu(type, scaled.items)}
+                  onClick={() => onLogMenu(type, menu.id, scaled.items)}
                   disabled={logged}
                   className={`flex-1 py-1.5 rounded-full text-[12px] transition ${
                     logged ? 'bg-line text-muted/60' : 'bg-clay text-white hover:bg-clay/90 active:scale-95'

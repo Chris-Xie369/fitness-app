@@ -62,7 +62,7 @@ export function DietTab({
 }) {
   const [showGoalSetup, setShowGoalSetup] = useState(false)
   const [view, setView] = useState<'log' | 'plan'>('log')
-  const [loggedMeal, setLoggedMeal] = useState<MealType | null>(null)
+  const [loggedMeal, setLoggedMeal] = useState<{ meal: MealType; menuId: string } | null>(null)
   const today = todayStr()
   const [date, setDate] = useState(today)
   const isToday = date === today
@@ -179,12 +179,13 @@ export function DietTab({
   }
 
   // 「按菜单记录」：逐项写入当天记录（与手动记录同构，单条可删、进备份）
-  function logMenu(meal: MealType, items: ScaledItem[]) {
-    for (const it of items) {
+  function logMenu(meal: MealType, menuId: string, items: ScaledItem[]) {
+    // 反向写入：addMeal 前插，倒序遍历后最终展示顺序与菜单一致
+    for (const it of [...items].reverse()) {
       onAdd({ id: uid(), date, meal, name: `${it.name} ${it.grams}g`, kcal: it.kcal, createdAt: Date.now() })
     }
-    setLoggedMeal(meal)
-    setTimeout(() => setLoggedMeal((cur) => (cur === meal ? null : cur)), 4000)
+    setLoggedMeal({ meal, menuId })
+    setTimeout(() => setLoggedMeal((cur) => (cur && cur.meal === meal && cur.menuId === menuId ? null : cur)), 4000)
   }
 
   return (
@@ -239,7 +240,7 @@ export function DietTab({
           weightKg={latestWeight}
           waterGoal={settings.waterGoal}
           mealChoice={settings.mealChoice}
-          loggedMeal={loggedMeal}
+          loggedMenu={loggedMeal}
           onChoose={chooseMenu}
           onLogMenu={logMenu}
         />
