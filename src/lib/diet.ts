@@ -1,4 +1,5 @@
 import type { MealEntry, MealType } from '../types'
+import { FOOD_LIBRARY } from './foods'
 
 const WEEKDAYS = '日一二三四五六'
 
@@ -95,4 +96,37 @@ export function learnedKcal(meals: MealEntry[], name: string): number | null {
   }
   if (n === 0) return null
   return Math.round((sumPerGram / n) * 100)
+}
+
+// ===== 宏量营养素估算 =====
+// 只对库名精确匹配的克数记录估算（名称须形如「<库名> <克数>g」）；库外/学习估算无比例依据，返回 null
+const FOOD_BY_NAME = new Map(FOOD_LIBRARY.map((f) => [f.name, f]))
+
+export function macrosOf(name: string, grams: number): { p: number; c: number; f: number } | null {
+  const match = name.trim().match(GRAM_SUFFIX)
+  if (!match) return null
+  const food = FOOD_BY_NAME.get(match[1].trim())
+  if (!food) return null
+  const k = grams / 100
+  return {
+    p: Math.round(food.protein * k),
+    c: Math.round(food.carbs * k),
+    f: Math.round(food.fat * k),
+  }
+}
+
+export function dayMacros(meals: MealEntry[], date: string): { p: number; c: number; f: number } {
+  const out = { p: 0, c: 0, f: 0 }
+  for (const m of meals) {
+    if (m.date !== date) continue
+    const match = m.name.trim().match(GRAM_SUFFIX)
+    if (!match) continue
+    const grams = Number(match[2])
+    const mac = macrosOf(m.name, grams)
+    if (!mac) continue
+    out.p += mac.p
+    out.c += mac.c
+    out.f += mac.f
+  }
+  return out
 }
