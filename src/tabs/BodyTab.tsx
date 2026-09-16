@@ -157,7 +157,7 @@ export function BodyTab({
       {latest && (
         <div className="mt-5 rounded-2xl bg-surface border border-line p-5 text-center">
           <p className="font-display text-[14px] text-muted">最近记录 · {latest.date}</p>
-          <p className="font-display text-[44px] leading-none mt-1 text-clay">
+          <p className="font-display text-[40px] leading-none mt-1 text-clay tabular-nums">
             {latest.value}<span className="text-[18px] text-muted"> {meta.unit}</span>
           </p>
           {prev && (

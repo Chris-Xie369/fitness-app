@@ -50,7 +50,7 @@ export function TodayTab({
 
       <div className="mt-6 rounded-2xl bg-surface border border-line p-6 text-center">
         <p className="font-display text-[15px] text-muted">连续坚持</p>
-        <p className="font-display text-[56px] leading-none mt-1 text-clay">{streak}</p>
+        <p className="font-display text-[56px] leading-none mt-1 text-clay tabular-nums">{streak}</p>
         <p className="text-[13px] text-muted mt-1">天</p>
         <p className={`mt-4 text-[14px] ${todayWorkout ? 'text-clay' : 'text-muted'}`}>
           {todayWorkout ? '今天已打卡' : '今天还没打卡'}

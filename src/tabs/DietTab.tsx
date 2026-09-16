@@ -58,12 +58,12 @@ function MacroBars({ today, target, missed }: {
       <div className="grid grid-cols-3 gap-2">
         {rows.map((r) => {
           const pct = r.range ? Math.min(100, Math.round((r.cur / r.range.high) * 100)) : 0
-          const tone = !r.range ? 'bg-line' : r.cur > r.range.high ? 'bg-ink/50' : r.cur >= r.range.low ? 'bg-clay' : 'bg-line'
+          const tone = !r.range ? 'bg-line' : r.cur > r.range.high ? 'bg-ink/40' : r.cur >= r.range.low ? 'bg-clay' : 'bg-line'
           return (
             <div key={r.key}>
               <p className="text-[10px] text-muted-weak">{r.key} {r.label}</p>
               <p className="text-[13px] text-ink tabular-nums leading-tight">{r.cur}g{r.range ? <span className="text-[10px] text-muted-weak"> / {r.range.low}-{r.range.high}</span> : null}</p>
-              {r.range && <div className="mt-0.5 h-1 rounded-full bg-line"><div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} /></div>}
+              {r.range && <div className="mt-0.5 h-1.5 rounded-full bg-line"><div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} /></div>}
             </div>
           )
         })}
@@ -142,6 +142,8 @@ export function DietTab({
   const [drafts, setDrafts] = useState(freshDrafts)
   // 自动补全下拉：一次只开一餐；idx 为键盘高亮
   const [suggest, setSuggest] = useState<{ meal: MealType; idx: number } | null>(null)
+  // 「最近食物」快捷胶囊全 App 只在一张卡显示：当前聚焦的餐（默认早餐），避免四份重复
+  const [capsuleMeal, setCapsuleMeal] = useState<MealType>('breakfast')
   const [copyConfirm, setCopyConfirm] = useState(false)
   const recent = recentMeals(meals)
   const todayGlasses = water.find((w) => w.date === date)?.glasses ?? 0
@@ -167,6 +169,13 @@ export function DietTab({
     setDrafts(freshDrafts())
     setCopyConfirm(false)
     setSuggest(null)
+  }
+
+  // 「最近食物」快捷胶囊只在一张卡显示：点/聚焦哪个餐的输入框就归属哪餐
+  function activateCapsule(meal: MealType) {
+    setCapsuleMeal(meal)
+    const name = drafts[meal].name.trim()
+    if (name) setSuggest({ meal, idx: suggest?.meal === meal ? suggest.idx : 0 })
   }
 
   function setDraft(meal: MealType, patch: Partial<Draft>) {
@@ -430,17 +439,17 @@ export function DietTab({
           <div className="flex items-end justify-between">
             <div>
               <p className="text-[11px] text-muted text-left">已吃</p>
-              <p className="font-display text-[28px] leading-none text-ink">{total}<span className="text-[12px] text-muted"> kcal</span></p>
+              <p className="font-display text-[28px] leading-none text-ink tabular-nums">{total}<span className="text-[12px] text-muted"> kcal</span></p>
             </div>
             <div className="text-right">
               <p className="text-[11px] text-muted">{total <= targetInfo.target ? '还能吃' : '已超出'}</p>
-              <p className={`font-display text-[40px] leading-none ${total <= targetInfo.target ? 'text-clay' : 'text-muted'}`}>
+              <p className={`font-display text-[40px] leading-none tabular-nums ${total <= targetInfo.target ? 'text-clay' : 'text-muted'}`}>
                 {Math.abs(targetInfo.target - total)}<span className="text-[14px] text-muted"> kcal</span>
               </p>
             </div>
           </div>
-          <div className="mt-3 h-2 rounded-full bg-line overflow-hidden">
-            <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/50' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
+          <div className="mt-3 h-1.5 rounded-full bg-line overflow-hidden">
+            <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/40' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
           </div>
           <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
           <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
@@ -451,7 +460,7 @@ export function DietTab({
       ) : (
         <div className="mt-3 rounded-2xl bg-surface border border-line p-6 text-center">
           <p className="font-display text-[15px] text-muted">{isToday ? '今天已吃' : '当天已吃'}</p>
-          <p className="font-display text-[56px] leading-none mt-1 text-clay">
+          <p className="font-display text-[40px] leading-none mt-1 text-clay tabular-nums">
             {total}<span className="text-[20px] text-muted"> kcal</span>
           </p>
           <p className="mt-2 text-[11px] text-muted">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
@@ -524,10 +533,10 @@ export function DietTab({
                 </ul>
               )}
 
-              {!d.name && suggestions.length === 0 && recent.length > 0 && (
+              {capsuleMeal === type && !d.name && suggestions.length === 0 && recent.length > 0 && (
                 <div className="mt-2">
-                  {/* 快捷按钮四餐共用（点按把名字+热量填进本餐输入框），不是已记录的条目 */}
-                  <p className="text-[10px] text-muted-weak mb-1">⏱ 最近 · 点按快速录入（非已记录）</p>
+                  {/* 快捷按钮（点按把名字+热量填进本餐输入框），不是已记录条目 */}
+                  <p className="text-[10px] text-muted-weak mb-1">⏱ 最近 · 点按快速录入</p>
                   <div className="flex flex-wrap gap-1.5">
                     {recent.slice(0, 6).map((r) => (
                       <button
@@ -550,7 +559,8 @@ export function DietTab({
                       setDraft(type, { name: e.target.value })
                       setSuggest({ meal: type, idx: 0 })
                     }}
-                    onFocus={() => d.name.trim() && setSuggest({ meal: type, idx: suggest?.meal === type ? suggest.idx : 0 })}
+                    onFocus={() => activateCapsule(type)}
+                    onClick={() => activateCapsule(type)}
                     onBlur={() => setTimeout(() => setSuggest((s) => (s?.meal === type ? null : s)), 120)}
                     onKeyDown={(e) => nameKeyDown(type, e)}
                     placeholder="食物（如：鸡胸肉）"

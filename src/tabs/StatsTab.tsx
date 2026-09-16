@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { MealEntry, Workout } from '../types'
 import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
-import { avgKcalByTraining, kcalTrend } from '../lib/diet'
+import { avgKcalByTraining } from '../lib/diet'
 import { volumeTrendInsight, weeklyInsight, weeklyReport } from '../lib/weekly'
 import { ringGeometry } from '../lib/goals'
 import { exerciseProgress } from '../lib/progress'
@@ -24,17 +24,6 @@ function WeekTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
   return (
     <div className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[12px] text-ink shadow">
       {prefix} · {d.days} 天 · {d.sets} 组
-    </div>
-  )
-}
-
-function KcalTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { date: string; x: string; kcal: number } }> }) {
-  if (!active || !payload?.length) return null
-  const d = payload[0].payload
-  const [, m, day] = d.date.split('-').map(Number)
-  return (
-    <div className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[12px] text-ink shadow">
-      {m}/{day} · {d.kcal} kcal
     </div>
   )
 }
@@ -86,10 +75,6 @@ export function StatsTab({
   // 饮食板块（没有任何饮食记录时不显示）
   const workoutDates = new Set(workouts.map((w) => w.date))
   const kcal = avgKcalByTraining(meals, workoutDates, 30)
-  const trend = kcalTrend(meals, 30).map((d) => ({
-    ...d,
-    x: d.label === '今' ? '今' : `${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}`,
-  }))
   const hasDiet = meals.length > 0
   const kcalMax = Math.max(kcal.trainAvg, kcal.restAvg, 1)
 
@@ -170,7 +155,7 @@ export function StatsTab({
 
       {/* 本周回顾②：指标对比（本周 vs 上周） */}
       <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
-        <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="grid grid-cols-5 gap-1 text-center">
           <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} hasPrev={report.lastWeek.trainDays > 0} unit="天" />
           <WeekCell label="训练时长" cur={report.thisWeek.durationMin || null} prev={report.lastWeek.durationMin} hasPrev={report.lastWeek.trainDays > 0} unit="分" />
           <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} hasPrev={report.lastWeek.trainDays > 0} unit="组" />
@@ -211,35 +196,20 @@ export function StatsTab({
           <p className="font-display text-[13px] italic text-muted mb-3">近 30 天 · 日均热量</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="font-display text-[24px] leading-none text-clay">{kcal.trainDays > 0 ? kcal.trainAvg : '—'}<span className="text-[12px] text-muted">{kcal.trainDays > 0 ? ' kcal' : ''}</span></p>
+              <p className="font-display text-[24px] leading-none text-clay tabular-nums">{kcal.trainDays > 0 ? kcal.trainAvg : '—'}<span className="text-[12px] text-muted">{kcal.trainDays > 0 ? ' kcal' : ''}</span></p>
               <p className="mt-1 text-[11px] text-muted">训练日（{kcal.trainDays} 天）</p>
               <div className="mt-1.5 h-1.5 rounded-full bg-line overflow-hidden">
                 {kcal.trainDays > 0 && <div className="h-full rounded-full bg-clay" style={{ width: `${Math.round((kcal.trainAvg / kcalMax) * 100)}%` }} />}
               </div>
             </div>
             <div>
-              <p className="font-display text-[24px] leading-none text-ink">{kcal.restDays > 0 ? kcal.restAvg : '—'}<span className="text-[12px] text-muted">{kcal.restDays > 0 ? ' kcal' : ''}</span></p>
+              <p className="font-display text-[24px] leading-none text-ink tabular-nums">{kcal.restDays > 0 ? kcal.restAvg : '—'}<span className="text-[12px] text-muted">{kcal.restDays > 0 ? ' kcal' : ''}</span></p>
               <p className="mt-1 text-[11px] text-muted">休息日（{kcal.restDays} 天）</p>
               <div className="mt-1.5 h-1.5 rounded-full bg-line overflow-hidden">
-                {kcal.restDays > 0 && <div className="h-full rounded-full bg-ink/60" style={{ width: `${Math.round((kcal.restAvg / kcalMax) * 100)}%` }} />}
+                {kcal.restDays > 0 && <div className="h-full rounded-full bg-muted/60" style={{ width: `${Math.round((kcal.restAvg / kcalMax) * 100)}%` }} />}
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 饮食：近 30 天趋势 */}
-      {hasDiet && (
-        <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-          <p className="font-display text-[13px] italic text-muted mb-2">近 30 天 · 每日热量</p>
-          <ResponsiveContainer width="100%" height={140}>
-            <BarChart data={trend} margin={{ top: 5, right: 8, bottom: 0, left: -20 }}>
-              <XAxis dataKey="x" tick={{ fontSize: 9, fill: muted }} axisLine={{ stroke: line }} tickLine={false} interval="preserveStartEnd" minTickGap={18} />
-              <YAxis tick={{ fontSize: 10, fill: muted }} axisLine={false} tickLine={false} width={36} />
-              <Tooltip cursor={{ fill: 'rgba(140,130,117,0.08)' }} content={<KcalTooltip />} />
-              <Bar dataKey="kcal" maxBarSize={10} isAnimationActive={false} shape={<ZeroBar fill={clay} zeroFill={line} />} />
-            </BarChart>
-          </ResponsiveContainer>
         </div>
       )}
 
@@ -338,7 +308,7 @@ export function StatsTab({
 function Stat({ value, unit, label }: { value: number; unit: string; label: string }) {
   return (
     <div className="rounded-2xl bg-surface border border-line py-4 text-center">
-      <p className="font-display text-[26px] leading-none text-clay">
+      <p className="font-display text-[26px] leading-none text-clay tabular-nums">
         {value}<span className="text-[13px] text-muted">{unit}</span>
       </p>
       <p className="mt-1 text-[11px] text-muted">{label}</p>
@@ -363,7 +333,7 @@ function WeekCell({ label, cur, prev, hasPrev = false, unit, neutral = false, co
   const tone = cur == null ? 'text-muted/50' : neutral ? 'text-muted' : diff > 0 ? 'text-clay' : diff < 0 ? 'text-muted' : 'text-muted-weak'
   return (
     <div>
-      <p className="font-display text-[22px] leading-none text-clay">
+      <p className="font-display text-[22px] leading-none text-clay tabular-nums">
         {cur == null ? '—' : fmt(cur)}<span className="text-[11px] text-muted">{cur == null ? '' : unit}</span>
       </p>
       <p className="mt-1 text-[11px] text-muted leading-tight">{label}</p>
