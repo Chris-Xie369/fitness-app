@@ -122,6 +122,7 @@ export function DietTab({
     setDrafts(freshDrafts())
     setCopyConfirm(false)
     setLoggedKeys([])
+    setSuggest(null)
   }
   // 函数式更新：快速连点不丢步
   function stepDate(delta: number) {
@@ -132,6 +133,7 @@ export function DietTab({
     setDrafts(freshDrafts())
     setCopyConfirm(false)
     setLoggedKeys([])
+    setSuggest(null)
   }
 
   function setDraft(meal: MealType, patch: Partial<Draft>) {
@@ -145,9 +147,7 @@ export function DietTab({
     const fromLib: PickedFood[] = searchFoods(q).map((f) => ({ name: f.name, kcalPer100g: f.kcalPer100g }))
     if (fromLib.some((f) => f.name === q)) return fromLib
     const learned = learnedKcal(meals, q)
-    if (learned != null && !fromLib.some((f) => f.name === q)) {
-      return [...fromLib, { name: q, kcalPer100g: learned, learned: true }]
-    }
+    if (learned != null) return [...fromLib, { name: q, kcalPer100g: learned, learned: true }]
     return fromLib
   }
 
@@ -157,20 +157,28 @@ export function DietTab({
     setSuggest(null)
   }
 
-  // 克数模式：名称与所选食物一致时生效；改名后自动回退大卡模式
-  function gramsMode(meal: MealType): PickedFood | null {
+  // 克数模式生效条件：名称与所选食物一致；未点选但精确输入了库内食物名 / 历史估算名，同样生效
+  function resolveFood(meal: MealType): PickedFood | null {
     const d = drafts[meal]
-    return d.picked && d.picked.name === d.name.trim() ? d.picked : null
+    const q = d.name.trim()
+    if (!q) return null
+    if (d.picked && d.picked.name === q) return d.picked
+    const hit = searchFoods(q).find((f) => f.name === q)
+    if (hit) return { name: hit.name, kcalPer100g: hit.kcalPer100g }
+    const learned = learnedKcal(meals, q)
+    if (learned != null) return { name: q, kcalPer100g: learned, learned: true }
+    return null
   }
 
   // 单条食物热量上限：超过 1 万大卡基本是输错了
   const MAX_KCAL = 10000
+  // 克数按 0.1 取整（与写入记录一致）：避免 0.04g 这类输入产生 0g/0kcal 记录
+  const roundGrams = (raw: string): number => Math.round(Number(raw) * 10) / 10
 
   function canAdd(meal: MealType): boolean {
     const d = drafts[meal]
-    const picked = gramsMode(meal)
-    if (picked) {
-      const g = Number(d.grams)
+    if (resolveFood(meal)) {
+      const g = roundGrams(d.grams)
       return Number.isFinite(g) && g > 0
     }
     if (!d.name.trim() || !d.kcal) return false
@@ -182,9 +190,9 @@ export function DietTab({
   function add(meal: MealType) {
     if (!canAdd(meal)) return
     const d = drafts[meal]
-    const picked = gramsMode(meal)
+    const picked = resolveFood(meal)
     if (picked) {
-      const grams = Math.round(Number(d.grams) * 10) / 10
+      const grams = roundGrams(d.grams)
       onAdd({
         id: uid(),
         date,
@@ -214,6 +222,8 @@ export function DietTab({
 
   // 名字输入框键盘：下拉打开时 ↑↓ 移动、Enter 选中；否则 Enter 添加
   function nameKeyDown(meal: MealType, e: React.KeyboardEvent<HTMLInputElement>) {
+    // 中文输入法组合中（拼音选词）的回车不算提交
+    if (e.nativeEvent.isComposing) return
     const list = suggestionsFor(meal)
     if (suggest?.meal === meal && list.length > 0) {
       const idx = suggest.idx
@@ -445,9 +455,9 @@ export function DietTab({
           const items = dayMeals.filter((m) => m.meal === type)
           const subtotal = items.reduce((n, m) => n + m.kcal, 0)
           const d = drafts[type]
-          const picked = gramsMode(type)
+          const picked = resolveFood(type)
           const suggestions = suggest?.meal === type ? suggestionsFor(type) : []
-          const gramsNum = picked ? Number(d.grams) : NaN
+          const gramsNum = picked ? roundGrams(d.grams) : NaN
           const gramsWarn = picked && Number.isFinite(gramsNum) && gramsNum > 2000
           return (
             <div key={type} className="rounded-2xl bg-surface border border-line p-4">
@@ -470,7 +480,7 @@ export function DietTab({
                 </ul>
               )}
 
-              {!d.name && suggest?.meal !== type && recent.length > 0 && (
+              {!d.name && suggestions.length === 0 && recent.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {recent.slice(0, 6).map((r) => (
                     <button
@@ -532,7 +542,7 @@ export function DietTab({
 
                 {/* 自动补全下拉：绝对定位浮在卡片内，不顶动布局 */}
                 {suggestions.length > 0 && (
-                  <ul className="absolute z-10 left-0 right-16 top-[42px] rounded-xl border border-line bg-surface shadow-lg overflow-hidden">
+                  <ul className="absolute z-10 left-0 right-[116px] top-[42px] rounded-xl border border-line bg-surface shadow-lg overflow-hidden">
                     {suggestions.map((s, i) => (
                       <li key={s.name}>
                         <button
