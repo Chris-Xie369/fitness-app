@@ -1,4 +1,4 @@
-import type { Workout } from '../types'
+import type { MealEntry, Workout } from '../types'
 
 export type Achievement = {
   id: string
@@ -32,8 +32,26 @@ export function longestStreak(workouts: Workout[]): number {
   return best
 }
 
+
+// 当前连续记录饮食的天数（今天还没记时从昨天起算，避免白天显示断档）
+export function mealStreak(meals: MealEntry[], now = new Date()): number {
+  const days = new Set(meals.map((m) => m.date))
+  let d = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (!days.has(fmtDate(d))) d.setDate(d.getDate() - 1)
+  let run = 0
+  while (days.has(fmtDate(d))) {
+    run++
+    d.setDate(d.getDate() - 1)
+  }
+  return run
+}
+
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // 从训练记录推导全部成就（含未达成的进度）
-export function achievements(workouts: Workout[]): Achievement[] {
+export function achievements(workouts: Workout[], meals: MealEntry[] = []): Achievement[] {
   const days = new Set(workouts.map((w) => w.date)).size
   const streak = longestStreak(workouts)
   const sets = workouts.reduce(
@@ -61,11 +79,18 @@ export function achievements(workouts: Workout[]): Achievement[] {
     mk('sets100', '💪', '百组勋章', '累计完成 100 组', sets, 100, '组'),
     mk('sets500', '🏋️', '钢铁之躯', '累计完成 500 组', sets, 500, '组'),
     mk('kinds5', '🧭', '动作探索', '尝试 5 种不同动作', kinds, 5, '种'),
+    mk('diet7', '🥗', '饮食一周', '连续记录饮食 7 天', mealStreak(meals), 7, '天'),
   ]
 }
 
 // 一次保存前后对比：返回新解锁的成就（之前未达成、之后达成）
-export function newlyEarned(before: Workout[], after: Workout[]): Achievement[] {
-  const beforeIds = new Set(achievements(before).filter((a) => a.earned).map((a) => a.id))
-  return achievements(after).filter((a) => a.earned && !beforeIds.has(a.id))
+export function newlyEarned(before: Workout[], after: Workout[], meals: MealEntry[] = []): Achievement[] {
+  const beforeIds = new Set(achievements(before, meals).filter((a) => a.earned).map((a) => a.id))
+  return achievements(after, meals).filter((a) => a.earned && !beforeIds.has(a.id))
+}
+
+// 保存饮食后检查新成就（训练成就不受影响，只可能新解锁饮食类）
+export function newlyEarnedMeals(before: MealEntry[], after: MealEntry[], workouts: Workout[]): Achievement[] {
+  const beforeIds = new Set(achievements(workouts, before).filter((a) => a.earned).map((a) => a.id))
+  return achievements(workouts, after).filter((a) => a.earned && !beforeIds.has(a.id))
 }

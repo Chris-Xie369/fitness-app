@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import type { MealEntry, Workout } from '../types'
 import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
 import { avgKcalByTraining, kcalTrend } from '../lib/diet'
-import { weeklyInsight, weeklyReport } from '../lib/weekly'
+import { volumeTrendInsight, weeklyInsight, weeklyReport } from '../lib/weekly'
 import { ringGeometry } from '../lib/goals'
 import { exerciseProgress } from '../lib/progress'
 import { estimate1RM, personalRecords } from '../lib/pr'
@@ -99,6 +99,7 @@ export function StatsTab({
   const report = weeklyReport(workouts, kcalByDate)
   const prs = personalRecords(workouts, 5)
   const weekdayName = '一二三四五六日'[report.elapsedDays - 1]
+  const volumeInsight = volumeTrendInsight(workouts)
 
   if (selected) {
     const points = exerciseProgress(workouts, selected).map((p) => ({
@@ -147,16 +148,9 @@ export function StatsTab({
     <div className="px-7 pt-16 pb-10">
       <h1 className="font-display text-[28px] text-ink text-center">统计</h1>
 
-      {/* 概览数字 */}
-      <div className="mt-6 grid grid-cols-3 gap-2">
-        <Stat value={ov.totalDays} unit="天" label="累计打卡" />
-        <Stat value={ov.weekDays} unit="天" label="本周训练" />
-        <Stat value={ov.totalSets} unit="组" label="累计完成" />
-      </div>
-
-      {/* 本周回顾（本周与上周同星期区间对比） */}
-      <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-        <div className="flex items-center justify-between mb-3">
+      {/* 本周回顾①：周目标 + 洞察（首屏第一位） */}
+      <div className="mt-6 rounded-2xl bg-surface border border-line p-4">
+        <div className="flex items-center justify-between">
           <p className="font-display text-[13px] italic text-muted">本周回顾 · 截至周{weekdayName}</p>
           <div className="flex items-center gap-2">
             <GoalRing value={report.thisWeek.trainDays} goal={settings.weeklyGoalDays} />
@@ -170,7 +164,13 @@ export function StatsTab({
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-5 gap-1 text-center">
+        <p className="mt-3 text-[12px] text-muted leading-relaxed">📈 {weeklyInsight(report)}</p>
+        {volumeInsight && <p className="mt-1 text-[12px] text-muted leading-relaxed">{volumeInsight}</p>}
+      </div>
+
+      {/* 本周回顾②：指标对比（本周 vs 上周） */}
+      <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
+        <div className="grid grid-cols-3 gap-2 text-center">
           <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} hasPrev={report.lastWeek.trainDays > 0} unit="天" />
           <WeekCell label="训练时长" cur={report.thisWeek.durationMin || null} prev={report.lastWeek.durationMin} hasPrev={report.lastWeek.trainDays > 0} unit="分" />
           <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} hasPrev={report.lastWeek.trainDays > 0} unit="组" />
@@ -184,7 +184,12 @@ export function StatsTab({
             neutral
           />
         </div>
-        <p className="mt-3 text-[12px] text-ink/70 leading-relaxed">📈 {weeklyInsight(report)}</p>
+      </div>
+
+      {/* 累计概览（"本周训练"已在上方周卡里，不再重复） */}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Stat value={ov.totalDays} unit="天" label="累计打卡" />
+        <Stat value={ov.totalSets} unit="组" label="累计完成" />
       </div>
 
       {/* 近 8 周训练量 */}
@@ -311,9 +316,9 @@ export function StatsTab({
 
       {/* 成就里程碑 */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-        <p className="font-display text-[13px] italic text-muted mb-3">成就 · {achievements(workouts).filter((a) => a.earned).length}/{achievements(workouts).length}</p>
+        <p className="font-display text-[13px] italic text-muted mb-3">成就 · {achievements(workouts, meals).filter((a) => a.earned).length}/{achievements(workouts, meals).length}</p>
         <div className="grid grid-cols-4 gap-2">
-          {achievements(workouts).map((a) => (
+          {achievements(workouts, meals).map((a) => (
             <div
               key={a.id}
               title={a.desc}

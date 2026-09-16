@@ -95,3 +95,31 @@ export function weeklyInsight(r: WeeklyReport): string {
   }
   return `${parts.join('，')}。`
 }
+
+// 近 8 周每周组数（含本周，按周一划分）
+export function weeklySetsSeries(workouts: Workout[], now = new Date(), weeks = 8): number[] {
+  const out: number[] = []
+  for (let i = weeks - 1; i >= 0; i--) {
+    const monday = new Date(mondayOf(now).getFullYear(), mondayOf(now).getMonth(), mondayOf(now).getDate() - i * 7)
+    const r = summarizeWeek(workouts, new Map(), monday, 7)
+    out.push(r.totalSets)
+  }
+  return out
+}
+
+// 训练量趋势结论（用于柱图上方一句话）：连续上升鼓励、明显偏低提示，否则 null
+export function volumeTrendInsight(workouts: Workout[], now = new Date()): string | null {
+  const s = weeklySetsSeries(workouts, now, 8)
+  const recent3 = s.slice(-3)
+  if (recent3[0] > 0 && recent3[1] > recent3[0] && recent3[2] > recent3[1]) {
+    return `近 3 周组数连续上升（${recent3.join(' → ')} 组），状态很好`
+  }
+  const older = s.slice(-5, -1) // 近 4 周（不含本周）
+  const olderTrained = older.filter((v) => v > 0)
+  if (olderTrained.length >= 2) {
+    const avg = olderTrained.reduce((a, b) => a + b, 0) / olderTrained.length
+    const cur = s[s.length - 1]
+    if (avg > 0 && cur < avg * 0.8) return `本周组数低于近 4 周均值（${cur} vs 均值 ${Math.round(avg)} 组）`
+  }
+  return null
+}

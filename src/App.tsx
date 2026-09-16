@@ -8,7 +8,7 @@ import { BodyTab } from './tabs/BodyTab'
 import { StatsTab } from './tabs/StatsTab'
 import { HistoryTab } from './tabs/HistoryTab'
 import { Celebration } from './components/Celebration'
-import { newlyEarned } from './lib/achievements'
+import { newlyEarned, newlyEarnedMeals } from './lib/achievements'
 import { newlySetPRs, weekGoalJustReached, weekKey, type CelebrationItem } from './lib/feedback'
 import { deleteRoutine, upsertRoutine } from './lib/routines'
 import { restorePhotos } from './lib/photos'
@@ -120,7 +120,11 @@ export default function App() {
   }
 
   function addMeal(m: MealEntry) {
-    setMeals((prev) => [m, ...prev])
+    setMeals((prev) => {
+      const earned = newlyEarnedMeals(prev, [m, ...prev], workouts)
+      if (earned.length > 0) setAchQueue((q) => [...q, ...earned])
+      return [m, ...prev]
+    })
   }
   function handleUpsertRoutine(name: string, exercises: { name: string; sets: Routine['exercises'][number]['sets'] }[]) {
     setRoutines((prev) => upsertRoutine(prev, name, exercises))

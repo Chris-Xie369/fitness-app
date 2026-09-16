@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AppSettings, MetricEntry, MetricType } from '../types'
-import { ageFromBirthYear, bmi, bmiCategory, bmrMifflin, fatMass, leanMass, movingAverage } from '../lib/body'
+import { ageFromBirthYear, bmi, bmiCategory, bmrMifflin, fatMass, leanMass, movingAverage, weightVelocity } from '../lib/body'
 import { todayStr } from '../lib/streak'
 import { ProgressPhotos } from '../components/ProgressPhotos'
 
@@ -84,6 +84,12 @@ export function BodyTab({
   const fat = latestOf('bodyFat')
   const heightCm = settings.heightCm
   const age = ageFromBirthYear(settings.birthYear)
+  // 近 4 周体重速度（减脂/增肌目标下对照设定速度）
+  const velocity = type === 'weight' ? weightVelocity(metrics) : null
+  const velocityText = velocity && settings.dietGoal && settings.dietGoal !== 'maintain'
+    ? `近 ${velocity.weeks} 周 ${velocity.delta > 0 ? '+' : ''}${velocity.delta}kg（≈${Math.abs(velocity.kgPerWeek)}kg/周${velocity.kgPerWeek > 0 ? '增重' : '减重'} · 目标 ${settings.dietPace ?? 0.5}kg/周）`
+    : null
+
   const derived = weight && heightCm
     ? {
         bmi: bmi(weight.value, heightCm),
@@ -244,6 +250,7 @@ export function BodyTab({
           <p className="font-display text-[13px] italic text-muted mb-2">
             {meta.label}趋势{type === 'weight' ? ' · 细线为 7 日平均' : ''}
           </p>
+          {velocityText && <p className="text-[11px] text-clay mb-2">{velocityText}</p>}
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
               <CartesianGrid stroke={line} vertical={false} />

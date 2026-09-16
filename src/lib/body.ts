@@ -54,3 +54,24 @@ export function movingAverage(
     return { ...p, avg }
   })
 }
+
+// 近 n 周体重变化速度：首条（n 周前至今最早一条）与最新一条的差 / 周数
+export function weightVelocity(
+  metrics: { date: string; type: string; value: number }[],
+  now = new Date(),
+  weeks = 4,
+): { kgPerWeek: number; delta: number; weeks: number } | null {
+  const weights = metrics
+    .filter((m) => m.type === 'weight')
+    .sort((a, b) => a.date.localeCompare(b.date))
+  if (weights.length < 2) return null
+  const latest = weights[weights.length - 1]
+  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - weeks * 7)
+  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`
+  const start = weights.find((m) => m.date <= latest.date && m.date <= cutoffKey) ?? weights.find((m) => m.date < latest.date)
+  if (!start || start.date === latest.date) return null
+  const days = Math.max(1, Math.round((new Date(latest.date).getTime() - new Date(start.date).getTime()) / 86400000))
+  const wk = days / 7
+  const delta = Math.round((latest.value - start.value) * 10) / 10
+  return { kgPerWeek: Math.round((delta / wk) * 100) / 100, delta, weeks: Math.round(wk * 10) / 10 }
+}
