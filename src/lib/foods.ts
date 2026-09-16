@@ -115,7 +115,7 @@ export function kcalFor(kcalPer100g: number, grams: number): number {
   return Math.round((kcalPer100g * grams) / 100)
 }
 
-// 自动补全：名字/别名包含 query 即命中；名字前缀优先，其次前缀在别名，其余包含；保持库内顺序稳定
+// 自动补全：名字/别名包含 query 即命中；名字前缀与别名精确同级最优先，其次别名前缀，其余包含；保持库内顺序稳定
 export function searchFoods(query: string, limit = 5): FoodItem[] {
   const q = query.trim().toLowerCase()
   if (!q) return []
@@ -124,7 +124,7 @@ export function searchFoods(query: string, limit = 5): FoodItem[] {
     const name = f.name.toLowerCase()
     const aliases = (f.aliases ?? []).map((a) => a.toLowerCase())
     let rank = 0
-    if (name.startsWith(q)) rank = 1
+    if (name.startsWith(q) || aliases.some((a) => a === q)) rank = 1
     else if (aliases.some((a) => a.startsWith(q))) rank = 2
     else if (name.includes(q) || aliases.some((a) => a.includes(q))) rank = 3
     if (rank) scored.push({ f, rank })
