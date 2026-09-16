@@ -414,7 +414,7 @@ export function DietTab({
           </div>
           <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
           <p className="mt-2 text-[11px] text-muted/80 tabular-nums">
-            今日 · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
+            {isToday ? '今天' : '当天'} · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
             {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
             {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
           </p>
@@ -430,7 +430,7 @@ export function DietTab({
           </p>
           <p className="mt-2 text-[11px] text-muted/80">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
           <p className="mt-2 text-[11px] text-muted/80 tabular-nums">
-            今日 · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
+            {isToday ? '今天' : '当天'} · 蛋白 {macrosToday.p}g{macroTargetsInfo ? `（${macroTargetsInfo.protein.low}-${macroTargetsInfo.protein.high}g）` : ''}
             {' '}· 碳水 {macrosToday.c}g{macroTargetsInfo ? `（${macroTargetsInfo.carbs.low}-${macroTargetsInfo.carbs.high}g）` : ''}
             {' '}· 脂肪 {macrosToday.f}g{macroTargetsInfo ? `（${macroTargetsInfo.fat.low}-${macroTargetsInfo.fat.high}g）` : ''}
           </p>
