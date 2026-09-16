@@ -7,7 +7,7 @@ export type PersonalRecord = {
   date: string
 }
 
-// 每个动作的历史最重一组（重量最大；并列时取次数少的，再并列取最近日期）
+// 每个动作的历史最重一组（重量最大；同重量取次数多者，再并列取最近日期）
 export function personalRecords(workouts: Workout[], limit = 5): PersonalRecord[] {
   const best = new Map<string, PersonalRecord>()
   for (const w of workouts) {

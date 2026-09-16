@@ -235,7 +235,7 @@ export function StatsTab({
                     {pr ? (
                       <>
                         <span className="text-clay font-medium">{pr.weight}kg</span> × {pr.reps}
-                        <span className="ml-1 text-[11px]">1RM {estimate1RM({ reps: pr.reps, weight: pr.weight })}</span>
+                        <span className="ml-1 text-[11px]">1RM {estimate1RM({ reps: pr.reps, weight: pr.weight })}kg</span>
                       </>
                     ) : (
                       <span>{ex.sets} 组 · {ex.times} 天</span>
@@ -340,7 +340,7 @@ function WeekCell({ label, cur, prev, hasPrev = false, unit, neutral = false, co
       <p className="font-display text-[22px] leading-none text-clay tabular-nums">
         {cur == null ? '—' : fmt(cur)}<span className="text-[11px] text-muted">{cur == null ? '' : unit}</span>
       </p>
-      <p className="mt-1 text-[11px] text-muted leading-tight">{label}</p>
+      <p className="mt-1 text-[11px] text-muted leading-tight min-h-[28px]">{label}</p>
       <p className={`text-[10px] mt-0.5 ${tone}`}>
         {!hasPrev ? '上周无记录' : `上周 ${fmt(prev)}${cur == null ? '' : arrow}`}
       </p>
