@@ -198,6 +198,7 @@ export default function App() {
             <TodayTab
               workouts={workouts}
               lastAdded={lastAdded}
+              weeklyGoalDays={settings.weeklyGoalDays}
               hasCelebration={achQueue.length > 0}
               onGoRecord={() => setTab('record')}
               onGoHistory={() => setTab('history')}

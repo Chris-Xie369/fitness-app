@@ -5,7 +5,6 @@ import { dayKcal, dayMacros, learnedKcal, mealMacros, MEAL_TYPES, recentMeals, w
 import { kcalFor, searchFoods } from '../lib/foods'
 import { ageFromBirthYear, bmrMifflin } from '../lib/body'
 import { ACTIVITY_LEVELS, calorieTarget, dayAdvice, PACE_OPTIONS, TRAINING_DAY_BONUS, weekAdherence, type DietGoal } from '../lib/nutrition'
-import { last7Glasses } from '../lib/goals'
 import { dayLabel, shiftDate } from '../lib/date'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
@@ -147,7 +146,6 @@ export function DietTab({
   const [copyConfirm, setCopyConfirm] = useState(false)
   const recent = recentMeals(meals)
   const todayGlasses = water.find((w) => w.date === date)?.glasses ?? 0
-  const weekGlasses = last7Glasses(water, today)
 
   const clay = token('--color-clay', '#B8553A')
   const ink = token('--color-ink', '#211C16')
@@ -469,7 +467,7 @@ export function DietTab({
       )}
       {weekTip && <p className="mt-2 px-1 text-[12px] text-ink/70">📊 {weekTip}</p>}
 
-      {/* 喝水 */}
+      {/* 喝水：打卡 stepper + 目标调整（近 7 天柱图已移除，记录页只留核心动作） */}
       <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
         <div className="flex items-center justify-between">
           <p className="text-[15px] text-ink">💧 喝水</p>
@@ -479,19 +477,22 @@ export function DietTab({
             <button onClick={() => onChangeWater(date, 1)} aria-label="增加一杯" className="h-7 w-7 -m-2 p-2 box-content rounded-full bg-clay text-white text-lg leading-none">＋</button>
           </div>
         </div>
-        <div className="mt-3 flex items-end justify-between gap-1">
-          {weekGlasses.map((g) => (
-            <div key={g.date} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full h-10 flex items-end bg-paper rounded">
-                <div className="w-full rounded bg-clay/70" style={{ height: `${Math.min(100, (g.glasses / Math.max(settings.waterGoal, 1)) * 100)}%` }} />
-              </div>
-              <span className="text-[9px] text-muted">{g.label}</span>
-            </div>
-          ))}
+        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-weak">
+          <span>每日目标</span>
+          <span className="flex items-center gap-1.5">
+            <button
+              onClick={() => onUpdateSettings({ waterGoal: Math.max(1, settings.waterGoal - 1) })}
+              aria-label="目标减一杯"
+              className="h-6 w-6 rounded-full border border-line leading-none hover:text-clay"
+            >－</button>
+            <span className="text-ink w-9 text-center tabular-nums">{settings.waterGoal} 杯</span>
+            <button
+              onClick={() => onUpdateSettings({ waterGoal: Math.min(30, settings.waterGoal + 1) })}
+              aria-label="目标加一杯"
+              className="h-6 w-6 rounded-full border border-line leading-none hover:text-clay"
+            >＋</button>
+          </span>
         </div>
-        <button onClick={() => onUpdateSettings({ waterGoal: settings.waterGoal === 8 ? 10 : 8 })} className="mt-2 text-[11px] text-muted-weak hover:text-clay">
-          每日目标 {settings.waterGoal} 杯 · 点此切换 8/10
-        </button>
       </div>
 
       {meals.length === 0 && (
@@ -581,7 +582,7 @@ export function DietTab({
                       onChange={(e) => setDraft(type, { kcal: e.target.value })}
                       onKeyDown={(e) => e.key === 'Enter' && add(type)}
                       inputMode="numeric"
-                      placeholder="大卡"
+                      placeholder="kcal"
                       className="w-16 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                     />
                   )}

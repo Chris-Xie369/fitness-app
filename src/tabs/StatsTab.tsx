@@ -4,11 +4,11 @@ import type { MealEntry, Workout } from '../types'
 import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
 import { avgKcalByTraining } from '../lib/diet'
 import { volumeTrendInsight, weeklyInsight, weeklyReport } from '../lib/weekly'
-import { ringGeometry } from '../lib/goals'
 import { exerciseProgress } from '../lib/progress'
 import { estimate1RM, personalRecords } from '../lib/pr'
 import { todayStr } from '../lib/streak'
 import { ZeroBar } from '../components/ZeroBar'
+import { GoalRing } from '../components/GoalRing'
 import { achievements } from '../lib/achievements'
 
 // 从 CSS 变量读颜色，让图表跟着主题走（与 BodyTab 一致）
@@ -82,7 +82,8 @@ export function StatsTab({
   const kcalByDate = new Map<string, number>()
   for (const m of meals) kcalByDate.set(m.date, (kcalByDate.get(m.date) ?? 0) + m.kcal)
   const report = weeklyReport(workouts, kcalByDate)
-  const prs = personalRecords(workouts, 5)
+  const prsAll = personalRecords(workouts, 999)
+  const prByName = new Map(prsAll.map((p) => [p.name, p]))
   const weekdayName = '一二三四五六日'[report.elapsedDays - 1]
   const volumeInsight = volumeTrendInsight(workouts)
 
@@ -213,44 +214,47 @@ export function StatsTab({
         </div>
       )}
 
-      {/* 动作榜 */}
+      {/* 动作榜：组数 + 历史最重 + 进步曲线入口（原「个人记录」卡已并入） */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-        <p className="font-display text-[13px] italic text-muted mb-3">动作榜 · Top 5</p>
-        <ul className="space-y-2.5">
-          {ranking.map((ex) => (
-            <li key={ex.name}>
-              <div className="flex justify-between text-[13px]">
-                <span className="text-ink">{ex.name}</span>
-                <span className="text-muted">{ex.sets} 组 · {ex.times} 天</span>
-              </div>
-              <div className="mt-1 h-1.5 rounded-full bg-line overflow-hidden">
-                <div className="h-full rounded-full bg-clay" style={{ width: `${Math.round((ex.sets / maxSets) * 100)}%` }} />
-              </div>
-            </li>
-          ))}
+        <p className="font-display text-[13px] italic text-muted mb-1">动作榜 · Top 5</p>
+        <p className="text-[10px] text-muted-weak mb-3">1RM = 最多只能举起 1 次的估算重量，用来衡量力量进步</p>
+        <ul className="space-y-3">
+          {ranking.map((ex) => {
+            const pr = prByName.get(ex.name)
+            return (
+              <li key={ex.name}>
+                <div className="flex items-baseline justify-between gap-2 text-[13px]">
+                  {pr ? (
+                    <button onClick={() => setSelected(pr.name)} className="text-ink min-w-0 text-left hover:text-clay transition truncate">
+                      {ex.name} <span className="text-[11px] text-muted">曲线 ›</span>
+                    </button>
+                  ) : (
+                    <span className="text-ink min-w-0 truncate">{ex.name}</span>
+                  )}
+                  <span className="shrink-0 text-muted tabular-nums">
+                    {pr ? (
+                      <>
+                        <span className="text-clay font-medium">{pr.weight}kg</span> × {pr.reps}
+                        <span className="ml-1 text-[11px]">1RM {estimate1RM({ reps: pr.reps, weight: pr.weight })}</span>
+                      </>
+                    ) : (
+                      <span>{ex.sets} 组 · {ex.times} 天</span>
+                    )}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-line overflow-hidden">
+                    <div className="h-full rounded-full bg-clay" style={{ width: `${Math.round((ex.sets / maxSets) * 100)}%` }} />
+                  </div>
+                  {pr && <span className="shrink-0 text-[10px] text-muted-weak tabular-nums">{ex.sets} 组 · {ex.times} 天</span>}
+                </div>
+              </li>
+            )
+          })}
         </ul>
       </div>
 
-      {/* 个人记录（历史最重一组） */}
-      {prs.length > 0 && (
-        <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-          <p className="font-display text-[13px] italic text-muted mb-1">个人记录 · 历史最重</p>
-          <p className="text-[10px] text-muted-weak mb-2">1RM = 最多只能举起 1 次的估算重量，用来衡量力量进步</p>
-          <ul className="space-y-1.5">
-            {prs.map((pr) => (
-              <li key={pr.name}>
-                <button onClick={() => setSelected(pr.name)} className="w-full flex items-center justify-between text-[14px] hover:opacity-70 transition">
-                  <span className="text-ink">{pr.name} <span className="text-[11px] text-muted">进步曲线 ›</span></span>
-                  <span className="text-muted">
-                    <span className="text-clay font-medium">{pr.weight}kg</span> × {pr.reps}
-                    <span className="ml-1.5 text-[11px]">估1RM {estimate1RM({ reps: pr.reps, weight: pr.weight })}kg</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+
 
       {/* 打卡热力：左侧星期坐标，12 列 × 周一~周日；今天用描边标出 */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
@@ -355,22 +359,3 @@ function ProgressTooltip({ active, payload }: { active?: boolean; payload?: Arra
   )
 }
 
-
-function GoalRing({ value, goal }: { value: number; goal: number }) {
-  const { circumference, offset } = ringGeometry(value / goal)
-  const done = value >= goal
-  return (
-    <svg width="38" height="38" viewBox="0 0 38 38" className="-rotate-90">
-      <circle cx="19" cy="19" r="15" fill="none" stroke="var(--color-line)" strokeWidth="3.5" />
-      <circle
-        cx="19" cy="19" r="15" fill="none"
-        stroke={done ? 'var(--color-clay)' : 'var(--color-ink)'}
-        strokeWidth="3.5" strokeLinecap="round"
-        strokeDasharray={circumference} strokeDashoffset={offset}
-      />
-      <text x="19" y="19" transform="rotate(90 19 19)" textAnchor="middle" dominantBaseline="central" fontSize="10" fill="var(--color-ink)">
-        {value}/{goal}
-      </text>
-    </svg>
-  )
-}

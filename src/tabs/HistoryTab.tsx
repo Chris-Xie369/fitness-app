@@ -322,7 +322,7 @@ export function HistoryTab({
                   <button
                     onClick={() => { onUpdateNote(w.id, noteDraft); setEditingNoteId(null) }}
                     className="shrink-0 px-2 py-1 text-[12px] text-clay"
-                  >保存</button>
+                  >保存备注</button>
                 </div>
               ) : (
                 <button

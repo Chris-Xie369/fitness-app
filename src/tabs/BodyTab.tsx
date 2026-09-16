@@ -235,7 +235,7 @@ export function BodyTab({
                   </button>
                 ))}
               </div>
-              <button onClick={saveProfile} className="px-3 py-1 rounded-lg bg-clay text-white text-[12px]">保存</button>
+              <button onClick={saveProfile} className="px-3 py-1 rounded-lg bg-clay text-white text-[12px]">保存资料</button>
             </div>
           </div>
         )}

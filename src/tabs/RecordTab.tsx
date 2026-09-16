@@ -284,7 +284,7 @@ export function RecordTab({
       {/* 训练模板 */}
       {routines.length > 0 && (
         <div className="mt-4">
-          <p className="font-display text-[12px] italic text-muted mb-1.5">我的模板 · 点按载入</p>
+          <p className="font-display text-[12px] italic text-muted mb-1.5">我的模板 · 点按填入</p>
           <div className="flex flex-wrap gap-1.5">
             {routines.map((r) => (
               <span key={r.id} className={`inline-flex items-center rounded-full border text-[12px] ${confirmLoad === r.id ? 'border-clay bg-clay/10' : 'border-line bg-paper'}`}>
@@ -375,7 +375,7 @@ export function RecordTab({
                       ) : null
                     })()}
                     {ex.sets.every((s) => !s.reps.trim() && !s.weight.trim()) && (
-                      <button onClick={() => applyHistory(ex.id, ex.name.trim())} className="text-clay hover:underline">带入 ↑</button>
+                      <button onClick={() => applyHistory(ex.id, ex.name.trim())} className="text-clay hover:underline">填入 ↑</button>
                     )}
                   </span>
                 </div>
@@ -437,7 +437,7 @@ export function RecordTab({
               autoFocus
               className="w-32 px-2 py-1.5 rounded-lg border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay"
             />
-            <button onClick={saveAsTemplate} className="text-[13px] text-clay hover:underline">保存</button>
+            <button onClick={saveAsTemplate} className="text-[13px] text-clay hover:underline">保存模板</button>
             <button onClick={() => setSavingTemplate(false)} className="text-[13px] text-muted-weak hover:underline">取消</button>
           </span>
         ) : (

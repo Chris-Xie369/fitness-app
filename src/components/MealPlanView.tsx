@@ -71,7 +71,7 @@ export function MealPlanView({
             </div>
           </div>
         )}
-        <p className="mt-2 text-[11px] text-muted">💧 饮水目标 {waterGoal} 杯（切换到「记录」打卡）</p>
+        <p className="mt-2 text-[11px] text-muted">💧 饮水目标 {waterGoal} 杯（切到饮食「记录」视图登记）</p>
         <p className="mt-1 text-[10px] text-muted-weak">P 蛋白 · C 碳水 · F 脂肪（g/天目标）</p>
       </div>
 
@@ -88,7 +88,7 @@ export function MealPlanView({
             <div key={type} className="rounded-2xl bg-surface border border-line p-4">
               <div className="flex items-center justify-between">
                 <p className="text-[15px] text-ink">{emoji} {label}<span className="ml-1.5 text-[12px] text-muted">{menu.theme}</span></p>
-                <p className="text-[12px] text-clay">~{scaled.totalKcal} 大卡</p>
+                <p className="text-[12px] text-clay">~{scaled.totalKcal} kcal</p>
               </div>
               <ul className="mt-2 space-y-1.5">
                 {scaled.items.map((it) => (
@@ -101,7 +101,7 @@ export function MealPlanView({
                   </li>
                 ))}
               </ul>
-              {logged && <p className="mt-2 text-[11px] text-clay">✓ 今天已记录 {loggedCount} 次（重复记会累加，可在「记录」里删除）</p>}
+              {logged && <p className="mt-2 text-[11px] text-clay">✓ 今天已记录 {loggedCount} 次（重复记会累加，可在饮食「记录」视图删除）</p>}
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => onChoose(type, (idx + 1) % menus.length)}
@@ -113,7 +113,7 @@ export function MealPlanView({
                   onClick={() => onLogMenu(type, menu.id, scaled.items)}
                   className="flex-1 py-1.5 rounded-full text-[12px] bg-clay text-white hover:bg-clay/90 active:scale-95 transition"
                 >
-                  {logged ? `再记一次（${loggedCount}）` : '按菜单记录'}
+                  {logged ? `再记一餐（${loggedCount}）` : '按菜单记录'}
                 </button>
               </div>
             </div>

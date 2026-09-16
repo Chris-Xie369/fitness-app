@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Workout } from '../types'
 import { computeStreak, todayStr, weekStatus } from '../lib/streak'
+import { GoalRing } from '../components/GoalRing'
 
 const WEEKDAYS = '日一二三四五六'
 
@@ -9,12 +10,14 @@ type LastAdded = { at: number; appended: boolean; count: number; date: string }
 export function TodayTab({
   workouts,
   lastAdded,
+  weeklyGoalDays,
   onGoRecord,
   onGoHistory,
   hasCelebration,
 }: {
   workouts: Workout[]
   lastAdded: LastAdded | null
+  weeklyGoalDays: number
   hasCelebration: boolean
   onGoRecord: () => void
   onGoHistory: () => void
@@ -23,6 +26,7 @@ export function TodayTab({
   const todayWorkout = workouts.find((w) => w.date === today)
   const streak = computeStreak(workouts)
   const week = weekStatus(workouts)
+  const weekDone = week.filter(Boolean).length
   const now = new Date()
   const dateLabel = `${now.getMonth() + 1} 月 ${now.getDate()} 日 · 周${WEEKDAYS[now.getDay()]}`
 
@@ -48,22 +52,29 @@ export function TodayTab({
       <p className="font-display text-[13px] italic text-muted text-center">{dateLabel}</p>
       <h1 className="font-display text-[28px] leading-none mt-1 text-ink text-center">健身打卡</h1>
 
-      <div className="mt-6 rounded-2xl bg-surface border border-line p-6 text-center">
-        <p className="font-display text-[15px] text-muted">连续坚持</p>
-        <p className="font-display text-[56px] leading-none mt-1 text-clay tabular-nums">{streak}</p>
-        <p className="text-[13px] text-muted mt-1">天</p>
-        <p className={`mt-4 text-[14px] ${todayWorkout ? 'text-clay' : 'text-muted'}`}>
-          {todayWorkout ? '今天已打卡' : '今天还没打卡'}
+      <div className="mt-6 rounded-2xl bg-surface border border-line p-6">
+        <div className="flex items-center justify-center gap-5">
+          <GoalRing value={weekDone} goal={weeklyGoalDays} size={64} />
+          <div className="text-left">
+            <p className="font-display text-[15px] text-muted">本周已练</p>
+            <p className="font-display text-[40px] leading-none mt-1 text-clay tabular-nums">
+              {weekDone}<span className="text-[16px] text-muted">/{weeklyGoalDays} 天</span>
+            </p>
+          </div>
+        </div>
+
+        <p className={`mt-4 text-center text-[13px] ${todayWorkout ? 'text-clay' : 'text-muted'}`}>
+          连续坚持 {streak} 天 · {todayWorkout ? '今天已打卡' : '今天还没打卡'}
         </p>
 
-      <div className="mt-5 flex justify-center gap-3">
-        {week.map((done, i) => (
-          <div key={i} className="flex flex-col items-center gap-1">
-            <span className="text-[10px] text-muted">{'一二三四五六日'[i]}</span>
-            <span className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-clay' : 'bg-line'}`} />
-          </div>
-        ))}
-      </div>  
+        <div className="mt-4 flex justify-center gap-3">
+          {week.map((done, i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <span className="text-[10px] text-muted">{'一二三四五六日'[i]}</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-clay' : 'bg-line'}`} />
+            </div>
+          ))}
+        </div>
       </div>
 
       {todayWorkout && (
