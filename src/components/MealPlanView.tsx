@@ -12,7 +12,7 @@ export function MealPlanView({
   weightKg,
   waterGoal,
   mealChoice,
-  loggedMenu,
+  loggedKeys,
   onChoose,
   onLogMenu,
 }: {
@@ -23,7 +23,7 @@ export function MealPlanView({
   weightKg?: number
   waterGoal: number
   mealChoice: Partial<Record<MealType, number>> | undefined
-  loggedMenu: { meal: MealType; menuId: string } | null
+  loggedKeys: string[]
   onChoose: (meal: MealType, index: number) => void
   onLogMenu: (meal: MealType, menuId: string, items: ScaledItem[]) => void
 }) {
@@ -36,7 +36,7 @@ export function MealPlanView({
     <div>
       {/* 🎯 每日营养目标（只展示目标范围，不做达成追踪） */}
       <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
-        <p className="font-display italic text-muted text-[13px]">🎯 每日营养目标{isTrainingDay ? ` · 训练日 +${TRAINING_DAY_BONUS}` : ''}</p>
+        <p className="font-display italic text-muted text-[13px]">🎯 每日营养目标{!usingBase && isTrainingDay ? ` · 训练日 +${TRAINING_DAY_BONUS}` : ''}</p>
         {usingBase ? (
           <p className="mt-2 text-[12px] text-muted leading-relaxed">
             在「身体」页填写体重、身高、性别和出生年后，这里会生成你的专属目标；当前菜单按 {BASE_KCAL} kcal 基准展示
@@ -60,7 +60,7 @@ export function MealPlanView({
             </div>
           </div>
         )}
-        <p className="mt-2 text-[11px] text-muted/80">💧 饮水目标 {waterGoal} 杯（记录视图打卡）</p>
+        <p className="mt-2 text-[11px] text-muted/80">💧 饮水目标 {waterGoal} 杯（切换到「记录」打卡）</p>
       </div>
 
       {/* 四餐菜单 */}
@@ -70,7 +70,7 @@ export function MealPlanView({
           const idx = (mealChoice?.[type] ?? 0) % menus.length
           const menu = menus[idx]
           const scaled = scaleMenu(menu, target)
-          const logged = !!loggedMenu && loggedMenu.meal === type && loggedMenu.menuId === menu.id
+          const logged = loggedKeys.includes(`${type}:${menu.id}`)
           return (
             <div key={type} className="rounded-2xl bg-surface border border-line p-4">
               <div className="flex items-center justify-between">
@@ -110,9 +110,15 @@ export function MealPlanView({
         })}
       </div>
 
-      <p className="mt-3 px-1 text-[11px] text-muted/70 leading-relaxed">
-        菜单克数按{isToday ? '今日' : '当日'}目标 {target} kcal 自动缩放；重复点「按菜单记录」会重复写入，可在记录视图单条删除
-      </p>
+      {usingBase ? (
+        <p className="mt-3 px-1 text-[11px] text-muted/70 leading-relaxed">
+          菜单按 {BASE_KCAL} kcal 基准展示，在「身体」页补全资料后自动按你的目标缩放；热量为食材近似值，未计烹调用油，以少油为准
+        </p>
+      ) : (
+        <p className="mt-3 px-1 text-[11px] text-muted/70 leading-relaxed">
+          菜单克数按{isToday ? '今天' : '当天'}目标 {target} kcal 自动缩放；热量为食材近似值，未计烹调用油，以少油为准。重复点「按菜单记录」会重复写入，可在「记录」里单条删除
+        </p>
+      )}
     </div>
   )
 }

@@ -62,7 +62,7 @@ export function DietTab({
 }) {
   const [showGoalSetup, setShowGoalSetup] = useState(false)
   const [view, setView] = useState<'log' | 'plan'>('log')
-  const [loggedMeal, setLoggedMeal] = useState<{ meal: MealType; menuId: string } | null>(null)
+  const [loggedKeys, setLoggedKeys] = useState<string[]>([])
   const today = todayStr()
   const [date, setDate] = useState(today)
   const isToday = date === today
@@ -114,7 +114,7 @@ export function DietTab({
     setDate(next)
     setDrafts(emptyDraft)
     setCopyConfirm(false)
-    setLoggedMeal(null)
+    setLoggedKeys([])
   }
   // 函数式更新：快速连点不丢步
   function stepDate(delta: number) {
@@ -124,7 +124,7 @@ export function DietTab({
     })
     setDrafts(emptyDraft)
     setCopyConfirm(false)
-    setLoggedMeal(null)
+    setLoggedKeys([])
   }
 
   function setDraft(meal: MealType, field: keyof Draft, value: string) {
@@ -184,9 +184,14 @@ export function DietTab({
     for (const it of [...items].reverse()) {
       onAdd({ id: uid(), date, meal, name: `${it.name} ${it.grams}g`, kcal: it.kcal, createdAt: Date.now() })
     }
-    setLoggedMeal({ meal, menuId })
-    setTimeout(() => setLoggedMeal((cur) => (cur && cur.meal === meal && cur.menuId === menuId ? null : cur)), 4000)
+    // 多张餐卡的确认态并存，各自 4 秒独立复位（连记多餐不会互相顶掉）
+    const key = `${meal}:${menuId}`
+    setLoggedKeys((prev) => (prev.includes(key) ? prev : [...prev, key]))
+    setTimeout(() => setLoggedKeys((prev) => prev.filter((k) => k !== key)), 4000)
   }
+
+  // 增肌只用慢档：0.75kg/周 = 每天约 +825kcal 盈余，超出部分主要转化为脂肪
+  const paceOptions = goal === 'gain' ? PACE_OPTIONS.filter((p) => p.value <= 0.5) : PACE_OPTIONS
 
   return (
     <div className="px-7 pt-16 pb-10">
@@ -240,7 +245,7 @@ export function DietTab({
           weightKg={latestWeight}
           waterGoal={settings.waterGoal}
           mealChoice={settings.mealChoice}
-          loggedMenu={loggedMeal}
+          loggedKeys={loggedKeys}
           onChoose={chooseMenu}
           onLogMenu={logMenu}
         />
@@ -269,10 +274,15 @@ export function DietTab({
               <div>
                 <p className="text-[11px] text-muted mb-1">速度</p>
                 <div className="flex gap-1.5">
-                  {PACE_OPTIONS.map((p) => (
+                  {paceOptions.map((p) => (
                     <button key={p.value} onClick={() => onUpdateSettings({ dietPace: p.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietPace ?? 0.5) === p.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{p.label}</button>
                   ))}
                 </div>
+                {goal === 'gain' && (
+                  <p className={`text-[10px] mt-1 ${(settings.dietPace ?? 0.5) > 0.5 ? 'text-clay' : 'text-muted/70'}`}>
+                    {(settings.dietPace ?? 0.5) > 0.5 ? '当前 0.75kg/周 盈余偏大，建议选 0.5 或 0.25' : '增肌宜慢，速度过快多长脂肪'}
+                  </p>
+                )}
               </div>
             )}
             <div>
