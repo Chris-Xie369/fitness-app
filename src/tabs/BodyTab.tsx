@@ -201,14 +201,14 @@ export function BodyTab({
                 onChange={(e) => setProfileDraft({ ...profileDraft, heightCm: e.target.value })}
                 inputMode="numeric"
                 placeholder="身高 cm"
-                className="flex-1 px-3 py-2 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
+                className="w-24 px-3 py-2 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
               />
               <input
                 value={profileDraft.birthYear}
                 onChange={(e) => setProfileDraft({ ...profileDraft, birthYear: e.target.value })}
                 inputMode="numeric"
-                placeholder="出生年，如 1996"
-                className="flex-1 px-3 py-2 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
+                placeholder="出生年"
+                className="w-24 px-3 py-2 rounded-lg border border-line bg-paper text-[13px] text-ink placeholder:text-muted/70 focus:outline-none focus:border-clay"
               />
             </div>
             <div className="flex items-center justify-between">
