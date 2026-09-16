@@ -1,4 +1,5 @@
-// 内置食物热量库（kcal/100g，熟重/可食部近似值）。lib/mealplan.ts 的菜单也引用本库，保持单一数据源。
+// 内置食物热量库（kcal/100g）。口径统一：肉/鱼/虾为熟重，米饭面条等主食为熟重，
+// 燕麦片等冲调谷物为干重，蔬果为可食部生重。lib/mealplan.ts 的菜单也引用本库，保持单一数据源。
 // 值为常见参考近似，用于个人记录估算，不做精确营养声称。
 
 export type FoodCategory = 'staple' | 'protein' | 'veg' | 'fruit' | 'dairy' | 'nut' | 'snack'
@@ -34,12 +35,12 @@ export const FOOD_LIBRARY: FoodItem[] = [
   // —— 肉蛋水产 ——
   { name: '水煮蛋', kcalPer100g: 155, category: 'protein', aliases: ['鸡蛋', '煮鸡蛋', '白煮蛋', '蛋'] },
   { name: '鸡胸肉', kcalPer100g: 165, category: 'protein', aliases: ['鸡胸', '鸡脯肉'] },
-  { name: '鸡腿', kcalPer100g: 181, category: 'protein', aliases: ['鸡腿肉'] },
-  { name: '鸡翅', kcalPer100g: 194, category: 'protein', aliases: ['鸡中翅'] },
+  { name: '鸡腿', kcalPer100g: 210, category: 'protein', aliases: ['鸡腿肉'] },
+  { name: '鸡翅', kcalPer100g: 215, category: 'protein', aliases: ['鸡中翅'] },
   { name: '瘦牛肉', kcalPer100g: 175, category: 'protein', aliases: ['牛肉', '卤牛肉'] },
-  { name: '牛腩', kcalPer100g: 283, category: 'protein', aliases: ['炖牛腩'] },
-  { name: '瘦猪肉', kcalPer100g: 143, category: 'protein', aliases: ['猪里脊', '里脊'] },
-  { name: '五花肉', kcalPer100g: 395, category: 'protein', aliases: ['猪五花'] },
+  { name: '牛腩', kcalPer100g: 320, category: 'protein', aliases: ['炖牛腩'] },
+  { name: '瘦猪肉', kcalPer100g: 190, category: 'protein', aliases: ['猪里脊', '里脊'] },
+  { name: '五花肉', kcalPer100g: 450, category: 'protein', aliases: ['猪五花'] },
   { name: '清蒸鱼', kcalPer100g: 120, category: 'protein', aliases: ['鱼', '蒸鱼', '鲈鱼'] },
   { name: '三文鱼', kcalPer100g: 208, category: 'protein', aliases: ['鲑鱼'] },
   { name: '鳕鱼', kcalPer100g: 88, category: 'protein' },

@@ -157,16 +157,18 @@ export function DietTab({
     setSuggest(null)
   }
 
-  // 克数模式生效条件：名称与所选食物一致；未点选但精确输入了库内食物名 / 历史估算名，同样生效
+  // 克数模式生效条件（两条路径）：
+  // ① 显式点选下拉某条（库内食物或「上次估算」）
+  // ② 精确输入库内食物名
+  // 手填过大卡时一律以大卡为准：避免补全名字/点历史胶囊时静默吞掉已输入的数值
   function resolveFood(meal: MealType): PickedFood | null {
     const d = drafts[meal]
     const q = d.name.trim()
     if (!q) return null
     if (d.picked && d.picked.name === q) return d.picked
+    if (d.kcal) return null
     const hit = searchFoods(q).find((f) => f.name === q)
     if (hit) return { name: hit.name, kcalPer100g: hit.kcalPer100g }
-    const learned = learnedKcal(meals, q)
-    if (learned != null) return { name: q, kcalPer100g: learned, learned: true }
     return null
   }
 
@@ -542,7 +544,7 @@ export function DietTab({
 
                 {/* 自动补全下拉：绝对定位浮在卡片内，不顶动布局 */}
                 {suggestions.length > 0 && (
-                  <ul className="absolute z-10 left-0 right-[116px] top-[42px] rounded-xl border border-line bg-surface shadow-lg overflow-hidden">
+                  <ul className="absolute z-10 left-0 right-[116px] top-[42px] max-h-40 overflow-y-auto rounded-xl border border-line bg-surface shadow-lg">
                     {suggestions.map((s, i) => (
                       <li key={s.name}>
                         <button
