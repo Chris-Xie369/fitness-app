@@ -26,16 +26,3 @@ export function exerciseProgress(workouts: Workout[], name: string): ProgressPoi
   }
   return points
 }
-
-// 一次训练的总容量（吨位）：Σ 重量×次数；徒手组不计
-export function workoutTonnage(workouts: Workout[]): number {
-  let sum = 0
-  for (const w of workouts) {
-    for (const ex of w.exercises) {
-      for (const s of ex.sets) {
-        if (s.weight != null && s.weight > 0) sum += s.weight * s.reps
-      }
-    }
-  }
-  return Math.round(sum)
-}

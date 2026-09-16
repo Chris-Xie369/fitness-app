@@ -1,13 +1,5 @@
-import { mondayOf } from './stats'
-
 function dateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// 今天到本周一累计天数（含今天，1-7）
-export function elapsedWeekdays(now = new Date()): number {
-  const monday = mondayOf(now)
-  return Math.min(7, Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - monday.getTime()) / 86400000) + 1)
 }
 
 // 环形进度（SVG）参数

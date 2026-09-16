@@ -163,6 +163,14 @@ export default function App() {
   }
   // 备份恢复：整体替换本地数据（useEffect 会立刻持久化）；照片写入 IndexedDB 并返回恢复结果
   function importBackup(data: BackupData) {
+    // 导入前自动快照当前数据（仅结构化数据，不含照片），误导入后可从该 key 手工找回
+    try {
+      localStorage.setItem(
+        'fitness-app:preImportBackup',
+        JSON.stringify({ app: 'fitness-app', version: 1, exportedAt: new Date().toISOString(),
+          workouts, metrics, meals, routines, water, settings }),
+      )
+    } catch { /* 配额满则跳过快照，不阻断导入 */ }
     setWorkouts(data.workouts)
     setMetrics(data.metrics ?? [])
     setMeals(data.meals)
@@ -208,7 +216,7 @@ export default function App() {
           )}
           {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} settings={settings} onUpdateSettings={updateSettings} />}
           {tab === 'history' && (
-            <HistoryTab workouts={workouts} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+            <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
           )}
         </main>
 

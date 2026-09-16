@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Workout } from '../types'
+import type { MealEntry, MetricEntry, Routine, WaterEntry, Workout } from '../types'
 import type { BackupData } from '../storage'
-import { dismissBackupHint, exportBackup, loadBackupHintTimes, markExported, parseBackup } from '../storage'
+import { backupMetaWarning, dismissBackupHint, exportBackup, loadBackupHintTimes, markExported, parseBackup } from '../storage'
 import { backupHintState } from '../lib/backup'
 import { exportPhotosForBackup } from '../lib/photos'
 
@@ -20,6 +20,10 @@ function todayStamp(): string {
 
 export function HistoryTab({
   workouts,
+  meals,
+  metrics,
+  routines,
+  water,
   onDelete,
   onRemoveExercise,
   onUpdateSets,
@@ -29,6 +33,10 @@ export function HistoryTab({
   hasCelebration,
 }: {
   workouts: Workout[]
+  meals: MealEntry[]
+  metrics: MetricEntry[]
+  routines: Routine[]
+  water: WaterEntry[]
   onDelete: (id: string) => void
   onRemoveExercise: (workoutId: string, exerciseId: string) => void
   onUpdateSets: (workoutId: string, exerciseId: string, sets: { reps: number; weight?: number }[]) => void
@@ -37,6 +45,7 @@ export function HistoryTab({
   lastAdded: { at: number; appended: boolean; count: number; date: string } | null
   hasCelebration: boolean
 }) {
+  const [pendingWarning, setPendingWarning] = useState<string | null>(null)
   // 二次确认：一天的卡片包含当天全部动作，误删整天损失大。第一次点只进入确认态，4 秒自动复位
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [pending, setPending] = useState<BackupData | null>(null)
@@ -128,6 +137,7 @@ export function HistoryTab({
         return
       }
       setMsg(null)
+      setPendingWarning(backupMetaWarning(String(reader.result ?? '')))
       setPending(data)
     }
     reader.readAsText(file)
@@ -376,8 +386,10 @@ export function HistoryTab({
         {pending && (
           <div className="mt-3 rounded-xl bg-paper border border-clay/30 p-3 text-[12px]">
             <p className="text-ink">
-              将用备份覆盖当前全部数据：{pending.workouts.length} 天训练 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.meals.length} 条饮食 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
+              本机现有 {workouts.length} 天训练 · {meals.length} 条饮食 · {metrics.length} 条身体记录 · {routines.length} 个模板 · {water.length} 天饮水，将被替换为备份中的 {pending.workouts.length} 天训练 · {pending.meals.length} 条饮食 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
             </p>
+            <p className="mt-1 text-muted">导入前已自动保存一份当前数据快照，误操作可联系开发者从本地恢复。</p>
+            {pendingWarning && <p className="mt-1 text-clay">{pendingWarning}</p>}
             <div className="mt-2 flex gap-2">
               <button onClick={() => void confirmImport()} className="px-3 py-1.5 rounded-lg bg-clay text-white">确认导入</button>
               <button onClick={() => setPending(null)} className="px-3 py-1.5 rounded-lg text-muted">取消</button>

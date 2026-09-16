@@ -45,8 +45,24 @@ export function normalizeWorkouts(workouts: Workout[]): Workout[] {
 export function loadWorkouts(): Workout[] {
   try {
     const raw = localStorage.getItem(WORKOUTS_KEY)
-    return raw ? normalizeWorkouts(JSON.parse(raw) as Workout[]) : []
+    if (!raw) return []
+    const data: unknown = JSON.parse(raw)
+    // 与其它加载器一致：非数组/含脏条目逐条过滤（isValidWorkout 为函数声明，此处可用）
+    if (!Array.isArray(data)) throw new Error('workouts is not an array')
+    const valid = (data as unknown[]).filter(
+      (x): x is Record<string, unknown> => !!x && typeof x === 'object' && isValidWorkout(x as Record<string, unknown>),
+    ) as unknown as Workout[]
+    if (valid.length !== data.length) {
+      // 有坏条目：把原始数据另存救援副本，再返回干净数据（不静默丢失）
+      try { localStorage.setItem(WORKOUTS_KEY + '.rescue', raw) } catch { /* 配额满则放弃救援副本 */ }
+    }
+    return normalizeWorkouts(valid)
   } catch {
+    // 解析彻底失败：保留原始字符串供人工恢复，绝不用 [] 覆盖
+    try {
+      const raw = localStorage.getItem(WORKOUTS_KEY)
+      if (raw) localStorage.setItem(WORKOUTS_KEY + '.rescue', raw)
+    } catch { /* ignore */ }
     return []
   }
 }
@@ -329,6 +345,8 @@ export function parseBackup(text: string): BackupData | null {
   }
   if (!data || typeof data !== 'object') return null
   const obj = data as Record<string, unknown>
+  // 前向兼容：拒绝明显不是本 App 的文件；来自更新版本的备份给调用方一个警告
+  if (typeof obj.app === 'string' && obj.app !== 'fitness-app') return null
   const pick = (key: string, valid: (x: Record<string, unknown>) => boolean): Record<string, unknown>[] =>
     Array.isArray(obj[key])
       ? (obj[key] as unknown[]).filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && valid(x as Record<string, unknown>))
@@ -374,6 +392,19 @@ export function parseBackup(text: string): BackupData | null {
   )
     return null
   return { workouts, body: [], metrics, meals, routines, water, settings, photos }
+}
+
+// 备份顶层版本/来源警告（parseBackup 通过后调用）：未来版本备份给用户显式提示
+export function backupMetaWarning(text: string): string | null {
+  try {
+    const obj = JSON.parse(text.replace(/^﻿/, '')) as Record<string, unknown>
+    if (typeof obj.version === 'number' && obj.version > 1) {
+      return '此备份来自更新版本的 App，部分新数据可能无法导入'
+    }
+    return null
+  } catch {
+    return null
+  }
 }
 
 const HINT_KEY = 'fitness-app:backupHint'
