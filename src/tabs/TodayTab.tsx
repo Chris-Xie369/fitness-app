@@ -54,7 +54,7 @@ export function TodayTab({
 
       <div className="mt-6 rounded-2xl bg-surface border border-line p-6">
         <div className="flex items-center justify-center gap-5">
-          <GoalRing value={weekDone} goal={weeklyGoalDays} size={64} />
+          <GoalRing value={weekDone} goal={weeklyGoalDays} size={64} showText={false} />
           <div className="text-left">
             <p className="font-display text-[15px] text-muted">本周已练</p>
             <p className="font-display text-[40px] leading-none mt-1 text-clay tabular-nums">
