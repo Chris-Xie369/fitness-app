@@ -52,9 +52,10 @@ export function RecordTab({
   const [savedHint, setSavedHint] = useState<string | null>(null)
   const [note, setNote] = useState('')
 
-  // 最近练过的动作：前 6 个做快捷胶囊，全部用于输入框自动补全
+  // 最近练过的动作：前 6 个做快捷胶囊
   const recent = recentExerciseNames(workouts, 6)
-  const allNames = recentExerciseNames(workouts)
+  // 输入框下拉候选 = 历史动作（优先）+ 常见动作（补齐），保证新用户也有可选项
+  const allNames = [...new Set([...recentExerciseNames(workouts), ...COMMON_EXERCISES])]
 
   useEffect(() => {
     if (!confirmLoad) return
