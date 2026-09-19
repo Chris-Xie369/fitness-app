@@ -51,6 +51,8 @@ export function RecordTab({
   const [confirmLoad, setConfirmLoad] = useState<string | null>(null)
   const [savedHint, setSavedHint] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  // 动作名建议下拉（替代原生 datalist：系统弹窗不受样式控制、iOS 表现差）
+  const [nameSuggest, setNameSuggest] = useState<{ id: string; idx: number } | null>(null)
 
   // 最近练过的动作：前 6 个做快捷胶囊
   const recent = recentExerciseNames(workouts, 6)
@@ -77,6 +79,7 @@ export function RecordTab({
     setSavingTemplate(false)
     setTemplateName('')
     setNote('')
+    setNameSuggest(null)
   }
   // 函数式更新：快速连点 ‹ › 不会因闭包陈旧而丢步
   function stepDate(delta: number) {
@@ -89,6 +92,38 @@ export function RecordTab({
     setSavingTemplate(false)
     setTemplateName('')
     setNote('')
+    setNameSuggest(null)
+  }
+
+  // 动作名候选：前缀命中排前、包含命中在后，最多 6 条；已精确输入则收起
+  function suggestExercises(query: string): string[] {
+    const q = query.trim()
+    if (!q) return []
+    const prefix: string[] = []
+    const contains: string[] = []
+    for (const n of allNames) {
+      if (n === q) return []
+      if (n.startsWith(q)) prefix.push(n)
+      else if (n.includes(q)) contains.push(n)
+    }
+    return [...prefix, ...contains].slice(0, 6)
+  }
+
+  // 选中建议：填入名称并带入上次重量（与胶囊同路径）
+  function pickExercise(id: string, name: string) {
+    applyHistory(id, name)
+    setNameSuggest(null)
+  }
+
+  function nameKeyDown(exId: string, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.nativeEvent.isComposing) return
+    const ex = exercises.find((x) => x.id === exId)
+    const list = ex ? suggestExercises(ex.name) : []
+    if (nameSuggest?.id === exId && list.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setNameSuggest({ id: exId, idx: (nameSuggest.idx + 1) % list.length }); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setNameSuggest({ id: exId, idx: (nameSuggest.idx - 1 + list.length) % list.length }); return }
+      if (e.key === 'Enter') { e.preventDefault(); const pick = list[nameSuggest.idx]; if (pick) pickExercise(exId, pick); return }
+    }
   }
 
   function addExercise() {
@@ -133,6 +168,7 @@ export function RecordTab({
   // 选历史动作：填入名字，并把上次的重量/次数整组带进来
   function applyHistory(id: string, name: string) {
     if (isToday) onBeginWorkout()
+    setNameSuggest(null)
     const last = lastSetsFor(workouts, name)
     setExercises((p) =>
       p.map((e) => (e.id === id ? { ...e, name, sets: last.length > 0 ? toDraftSets(last) : e.sets } : e)),
@@ -305,12 +341,6 @@ export function RecordTab({
         </div>
       )}
 
-      <datalist id="exercise-names">
-        {allNames.map((n) => (
-          <option key={n} value={n} />
-        ))}
-      </datalist>
-
       <div className="mt-5 space-y-5">
         {exercises.map((ex, exIdx) => {
           const last = ex.name.trim() ? lastSetsFor(workouts, ex.name) : []
@@ -319,8 +349,10 @@ export function RecordTab({
               <div className="flex items-center gap-2">
                 <input
                   value={ex.name}
-                  onChange={(e) => setName(ex.id, e.target.value)}
-                  list="exercise-names"
+                  onChange={(e) => { setName(ex.id, e.target.value); setNameSuggest({ id: ex.id, idx: 0 }) }}
+                  onFocus={() => ex.name.trim() && setNameSuggest({ id: ex.id, idx: nameSuggest?.id === ex.id ? nameSuggest.idx : 0 })}
+                  onBlur={() => setTimeout(() => setNameSuggest((s) => (s?.id === ex.id ? null : s)), 120)}
+                  onKeyDown={(e) => nameKeyDown(ex.id, e)}
                   placeholder={`动作 ${exIdx + 1}（如：卧推）`}
                   className="flex-1 px-3 py-2 rounded-xl border border-line bg-paper text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
                 />
@@ -328,6 +360,25 @@ export function RecordTab({
                   <button onClick={() => removeExercise(ex.id)} className="text-muted/50 hover:text-clay text-sm">删除</button>
                 )}
               </div>
+
+              {/* 建议下拉：文档流内展开（与饮食页同款），点选=填入并带上一次重量 */}
+              {nameSuggest?.id === ex.id && (() => {
+                const list = suggestExercises(ex.name)
+                return list.length > 0 ? (
+                  <ul className="mt-1.5 max-h-40 overflow-y-auto rounded-xl border border-line bg-surface shadow">
+                    {list.map((n, i) => (
+                      <li key={n}>
+                        <button
+                          onMouseDown={(e) => { e.preventDefault(); pickExercise(ex.id, n) }}
+                          className={`w-full px-3 py-2 text-left text-[13px] ${nameSuggest.idx === i ? 'bg-clay/10 text-clay' : 'text-ink'}`}
+                        >
+                          {n}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null
+              })()}
 
               {/* 历史动作快捷选择；无历史时显示常见动作 */}
               {!ex.name.trim() && (
