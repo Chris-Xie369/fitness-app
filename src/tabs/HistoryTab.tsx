@@ -18,6 +18,11 @@ function todayStamp(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function fmtTime(t: number): string {
+  const d = new Date(t)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 export function HistoryTab({
   workouts,
   meals,
@@ -310,6 +315,7 @@ export function HistoryTab({
                   <p className="font-display text-[15px] text-ink">{formatDate(w.date)}</p>
                   <p className="text-[12px] text-muted mt-0.5">
                     {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组{w.durationSec ? ` · ${Math.round(w.durationSec / 60)} 分钟` : ''}
+                    {' '}· 记录于 {fmtTime(w.createdAt)}{w.updatedAt && w.updatedAt > w.createdAt ? ` · 更新于 ${fmtTime(w.updatedAt)}` : ''}
                   </p>
                   {editingNoteId === w.id ? (
                 <div className="mt-1.5 flex gap-1.5">

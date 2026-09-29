@@ -17,6 +17,7 @@ export type Workout = {
   note?: string
   durationSec?: number
   createdAt: number
+  updatedAt?: number // 同日追加训练时的最近保存时间（新建不加该字段）
 }
 
 // 身体记录（阶段 2）

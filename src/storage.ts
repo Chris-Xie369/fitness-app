@@ -27,10 +27,13 @@ export function normalizeWorkouts(workouts: Workout[]): Workout[] {
   for (const list of byDate.values()) {
     const ordered = [...list].sort((a, b) => a.createdAt - b.createdAt)
     const first = ordered[0]
+    // 同日追加的最新保存时间：从最近到最早找第一条带 updatedAt 的
+    const updatedAt = [...ordered].reverse().map((w) => w.updatedAt).find((v) => typeof v === 'number' && v > 0)
     merged.push({
       id: first.id,
       date: first.date,
       createdAt: first.createdAt,
+      ...(updatedAt ? { updatedAt } : {}),
       durationSec: ordered.map((w) => w.durationSec).find((v) => typeof v === 'number' && v > 0),
       exercises: ordered.flatMap((w) => w.exercises).map((ex) =>
         ex.id ? ex : { ...ex, id: newId() },
@@ -314,6 +317,7 @@ function isValidWorkout(x: Record<string, unknown>): boolean {
     typeof x.id === 'string' &&
     isValidDate(x.date) &&
     isNum(x.createdAt) &&
+    (x.updatedAt === undefined || (isNum(x.updatedAt) && x.updatedAt > 0)) &&
     (x.note === undefined || typeof x.note === 'string') &&
     (x.durationSec === undefined || (isNum(x.durationSec) && x.durationSec > 0)) &&
     Array.isArray(x.exercises) &&
