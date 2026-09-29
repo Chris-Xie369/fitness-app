@@ -39,9 +39,9 @@ export type WeekBucket = { label: string; days: number; sets: number }
 
 // 最近 n 周（含本周），按时间升序；每周统计训练天数与总组数。
 // 一律用本地日期分量推进（不用 7*86400000 毫秒推算），夏令时切换周边界也不会偏。
-export function weeklyTotals(workouts: Workout[], n = 8): WeekBucket[] {
+export function weeklyTotals(workouts: Workout[], n = 8, now = new Date()): WeekBucket[] {
   const byDate = setsByDate(workouts)
-  const monday = mondayOf(new Date())
+  const monday = mondayOf(now)
   const buckets: WeekBucket[] = []
   for (let i = n - 1; i >= 0; i--) {
     const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - i * 7)
@@ -54,7 +54,7 @@ export function weeklyTotals(workouts: Workout[], n = 8): WeekBucket[] {
         sets += s
       }
     }
-    buckets.push({ label: mdLabel(start), days, sets })
+    buckets.push({ label: `${mdLabel(start)}周`, days, sets })
   }
   return buckets
 }

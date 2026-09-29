@@ -180,7 +180,7 @@ export function StatsTab({
 
       {/* 近 8 周训练量 */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
-        <p className="font-display text-[13px] italic text-muted mb-2">近 8 周 · 每周组数</p>
+        <p className="font-display text-[13px] italic text-muted mb-2">近 8 周 · 每周组数（柱子按周聚合，标签为周一）</p>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={weeks} margin={{ top: 5, right: 8, bottom: 0, left: -28 }}>
             <XAxis dataKey="label" tick={{ fontSize: 10, fill: muted }} axisLine={{ stroke: line }} tickLine={false} interval={0} />
