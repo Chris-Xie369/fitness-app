@@ -31,7 +31,7 @@ export default function App() {
   const [water, setWater] = useState<WaterEntry[]>(() => loadWater())
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [metrics, setMetrics] = useState<MetricEntry[]>(() => loadMetrics())
-  const [tab, setTab] = useState<Tab>('today')
+  const [tab, setTab] = useState<Tab>('diet')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
   const [achQueue, setAchQueue] = useState<CelebrationItem[]>([])
   const [workoutStart, setWorkoutStart] = useState<number | null>(null)
@@ -251,11 +251,10 @@ function TabButton({ active, onClick, label, icon }: { active: boolean; onClick:
       onClick={onClick}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] transition ${active ? 'text-clay' : 'text-muted'}`}
+      className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] transition ${active ? 'text-clay font-medium' : 'text-muted'}`}
     >
-      <span className="leading-none">{icon}</span>
+      <span className={`rounded-xl px-2.5 py-1 leading-none transition ${active ? 'bg-clay/12' : ''}`}>{icon}</span>
       {label}
-      <span className={`h-1 w-1 rounded-full ${active ? 'bg-clay' : 'bg-transparent'}`} />
     </button>
   )
 }
