@@ -78,19 +78,12 @@ export function TodayTab({
       </div>
 
       {todayWorkout && (
-        <div className="mt-5">
-          <p className="font-display text-[13px] italic text-muted mb-2">今日训练</p>
-          <ul className="space-y-2">
-            {todayWorkout.exercises.map((ex, i) => (
-              <li key={i} className="rounded-xl bg-surface border border-line px-4 py-3">
-                <p className="text-[15px] text-ink">{ex.name}</p>
-                <p className="text-[13px] text-muted mt-0.5">
-                  {ex.sets.map((s) => (s.weight ? `${s.reps}×${s.weight}kg` : `${s.reps}次`)).join(' · ')}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <p className="mt-5 text-center text-[13px] text-muted tabular-nums">
+          今日已练 {todayWorkout.exercises.length} 个动作 ·{' '}
+          {todayWorkout.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组 ·{' '}
+          {Math.round(todayWorkout.exercises.reduce((n, ex) => n + ex.sets.reduce((a, s) => a + (s.weight ?? 0) * s.reps, 0), 0))} kg
+          {' '}· <button onClick={onGoHistory} className="text-clay hover:underline">查看明细 ›</button>
+        </p>
       )}
 
       <button

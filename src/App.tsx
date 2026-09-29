@@ -232,7 +232,7 @@ export default function App() {
         </main>
 
         <nav className="flex border-t border-line bg-paper pb-[env(safe-area-inset-bottom)]">
-          <TabButton active={tab === 'today' || tab === 'history'} onClick={() => setTab('today')} label="今天" icon={<TodayIcon />} />
+          <TabButton active={tab === 'today' || tab === 'history'} onClick={() => setTab('today')} label="打卡" icon={<TodayIcon />} />
           <TabButton active={tab === 'record'} onClick={() => setTab('record')} label="记录" icon={<RecordIcon />} />
           <TabButton active={tab === 'diet'} onClick={() => setTab('diet')} label="饮食" icon={<DietIcon />} />
           <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon={<BodyIcon />} />
