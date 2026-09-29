@@ -565,23 +565,29 @@ export function DietTab({
               />
             )
           })()}
-          <button
-            onClick={() => {
-              const m = Number(actMinutes)
-              if (!Number.isFinite(m) || m < 1 || m > 600) return
-              const est = actKind !== 'other' && latestWeight ? estimateKcal(actKind, m, latestWeight) : 0
-              const k = actKcal ? Math.round(Number(actKcal)) : est
-              if (!Number.isFinite(k) || k <= 0 || k > 5000) return
-              onAddActivity({ id: uid(), date, kind: actKind, minutes: m, kcal: k, createdAt: Date.now() })
-              setActMinutes('')
-              setActKcal('')
-            }}
-            disabled={!(Number(actMinutes) >= 1)}
-            className="shrink-0 w-9 h-9 rounded-xl bg-clay text-white text-[18px] leading-none transition enabled:hover:bg-clay/90 enabled:active:scale-95 disabled:bg-line disabled:text-muted-weak"
-          >＋</button>
+          {(() => {
+            const m = Number(actMinutes)
+            const minutesOk = Number.isFinite(m) && m >= 1 && m <= 600
+            const est = actKind !== 'other' && latestWeight && minutesOk ? estimateKcal(actKind, m, latestWeight) : 0
+            const k = actKcal ? Math.round(Number(actKcal)) : est
+            const kcalOk = Number.isFinite(k) && k > 0 && k <= 5000
+            const canSave = minutesOk && kcalOk
+            return (
+              <button
+                onClick={() => {
+                  if (!canSave) return
+                  onAddActivity({ id: uid(), date, kind: actKind, minutes: m, kcal: k, createdAt: Date.now() })
+                  setActMinutes('')
+                  setActKcal('')
+                }}
+                disabled={!canSave}
+                className="shrink-0 w-9 h-9 rounded-xl bg-clay text-white text-[18px] leading-none transition enabled:hover:bg-clay/90 enabled:active:scale-95 disabled:bg-line disabled:text-muted-weak"
+              >＋</button>
+            )
+          })()}
         </div>
         <p className="mt-1 text-[10px] text-muted-weak">
-          慢跑≈8 MET · 快走≈5 · 步行≈3.5；{latestWeight ? '按最近体重估算，可手动改' : '在身体页填体重后自动估算'}；健身房力量训练不计入此处
+          慢跑≈8 MET · 快走≈5 · 步行≈3.5；{latestWeight ? '按最近体重估算，可手动改' : '在身体页填体重后自动估算'}；「其他」需手填 kcal；健身房力量训练不计入此处
         </p>
       </div>
 

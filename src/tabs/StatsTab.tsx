@@ -20,7 +20,7 @@ function token(name: string, fallback: string): string {
 function WeekTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; days: number; sets: number } }> }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
-  const prefix = d.label === '本周' ? '本周' : `${d.label} 周`
+  const prefix = d.label
   return (
     <div className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[12px] text-ink shadow">
       {prefix} · {d.days} 天 · {d.sets} 组
@@ -58,7 +58,7 @@ export function StatsTab({
   const line = token('--color-line', '#E2DBCD')
   const ink = token('--color-ink', '#211C16')
 
-  if (workouts.length === 0) {
+  if (workouts.length === 0 && activities.length === 0) {
     return (
       <div className="px-7 pt-16 pb-10">
         <h1 className="font-display text-[28px] text-ink text-center">统计</h1>
@@ -88,16 +88,20 @@ export function StatsTab({
   const prByName = new Map(prsAll.map((p) => [p.name, p]))
   const weekdayName = '一二三四五六日'[report.elapsedDays - 1]
   const volumeInsight = volumeTrendInsight(workouts)
-  // 本周/上周运动消耗合计（周一为周首，与周回顾同口径）
-  const inWeek = (date: string, mondayOffset: number): boolean => {
+  // 本周/上周运动消耗合计；上周与其它周指标同口径，只取前 elapsedDays 天（截至今天同星期区间）
+  // 日期分量推算，不用 7*86400000（DST 安全，见 lib/stats.ts 约定）
+  const inWeek = (date: string, mondayOffset: number, dayCount: number): boolean => {
     const monday = mondayOf(new Date())
-    const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + mondayOffset)
     const [y, m, d] = date.split('-').map(Number)
     const t = new Date(y, m - 1, d).getTime()
-    return t >= start.getTime() && t < start.getTime() + 7 * 86400000
+    for (let i = 0; i < dayCount; i++) {
+      const day = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + mondayOffset + i)
+      if (day.getTime() === t) return true
+    }
+    return false
   }
-  const burnThis = activities.filter((a) => inWeek(a.date, 0)).reduce((n, a) => n + a.kcal, 0)
-  const burnLast = activities.filter((a) => inWeek(a.date, -7)).reduce((n, a) => n + a.kcal, 0)
+  const burnThis = activities.filter((a) => inWeek(a.date, 0, report.elapsedDays)).reduce((n, a) => n + a.kcal, 0)
+  const burnLast = activities.filter((a) => inWeek(a.date, -7, report.elapsedDays)).reduce((n, a) => n + a.kcal, 0)
 
   if (selected) {
     const points = exerciseProgress(workouts, selected).map((p) => ({

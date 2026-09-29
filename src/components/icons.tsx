@@ -1,4 +1,4 @@
-// 底部导航图标：统一 1.5px 描边、24px 视觉尺寸，currentColor 随激活态变色
+// 底部导航图标：统一 2.2px 描边、24px 视觉尺寸，currentColor 随激活态变色
 type IconProps = { className?: string }
 
 const base = 'w-6 h-6'

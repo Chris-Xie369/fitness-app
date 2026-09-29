@@ -36,7 +36,6 @@ export function TodayTab({
     // 补记过去日的保存不在今天页反馈（历史页有自己的确认）；成就弹层开着时等它关闭再反馈
     if (!lastAdded || lastAdded.date !== today || hasCelebration) return
     setToast(lastAdded.appended ? `已追加 ${lastAdded.count} 个动作到今天的训练` : '打卡成功，开练！')
-    document.querySelector('main ul li:last-child')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     const t = setTimeout(() => setToast(null), 2600)
     return () => clearTimeout(t)
   }, [lastAdded, today, hasCelebration])
@@ -77,14 +76,16 @@ export function TodayTab({
         </div>
       </div>
 
-      {todayWorkout && (
-        <p className="mt-5 text-center text-[13px] text-muted tabular-nums">
-          今日已练 {todayWorkout.exercises.length} 个动作 ·{' '}
-          {todayWorkout.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组 ·{' '}
-          {Math.round(todayWorkout.exercises.reduce((n, ex) => n + ex.sets.reduce((a, s) => a + (s.weight ?? 0) * s.reps, 0), 0))} kg
-          {' '}· <button onClick={onGoHistory} className="text-clay hover:underline">查看明细 ›</button>
-        </p>
-      )}
+      {todayWorkout && (() => {
+        const sets = todayWorkout.exercises.reduce((n, ex) => n + ex.sets.length, 0)
+        const volume = Math.round(todayWorkout.exercises.reduce((n, ex) => n + ex.sets.reduce((a, s) => a + (s.weight ?? 0) * s.reps, 0), 0))
+        return (
+          <p className="mt-5 text-center text-[13px] text-muted tabular-nums">
+            今日已练 {todayWorkout.exercises.length} 个动作 · {sets} 组{volume > 0 ? ` · ${volume} kg` : ''}
+            {' '}· <button onClick={onGoHistory} className="text-clay hover:underline">查看明细 ›</button>
+          </p>
+        )
+      })()}
 
       <button
         onClick={onGoRecord}

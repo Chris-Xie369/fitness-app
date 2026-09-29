@@ -62,11 +62,12 @@ export default function App() {
     // 训练时长：仅「今天首次新建」时记录；补记过去日不带时长。异常长（>5小时）视为挂起忽略
     const isTodaySave = w.date === todayStr()
     const durationSec = (isTodaySave && workoutStart) ? Math.min(18000, Math.max(30, Math.round((Date.now() - workoutStart) / 1000))) : undefined
-    const stamped: Workout = { ...w, updatedAt: Date.now() }
-    const stampedDur: Workout = (!appended && durationSec) ? { ...stamped, durationSec } : stamped
+    // updatedAt 只在同日追加时写；新建不写（与类型注释一致，避免「记录于=更新于」的冗余显示）
+    const now = Date.now()
+    const withDuration: Workout = (!appended && durationSec) ? { ...w, durationSec } : w
     const after = appended
-      ? workouts.map((x) => (x.date === w.date ? { ...x, exercises: [...x.exercises, ...stamped.exercises], note: x.note ?? stamped.note, updatedAt: stamped.updatedAt } : x))
-      : [stampedDur, ...workouts].sort((x, y) => y.date.localeCompare(x.date))
+      ? workouts.map((x) => (x.date === w.date ? { ...x, exercises: [...x.exercises, ...w.exercises], note: x.note ?? w.note, updatedAt: now } : x))
+      : [withDuration, ...workouts].sort((x, y) => y.date.localeCompare(x.date))
     const earned: CelebrationItem[] = newlyEarned(workouts, after)
     earned.push(...newlySetPRs(workouts, after))
     // 周目标达成：每周只庆祝一次（localStorage 记录已庆祝的周）
@@ -187,7 +188,7 @@ export default function App() {
       localStorage.setItem(
         'fitness-app:preImportBackup',
         JSON.stringify({ app: 'fitness-app', version: 1, exportedAt: new Date().toISOString(),
-          workouts, metrics, meals, routines, water, settings }),
+          workouts, metrics, meals, routines, water, activities, settings }),
       )
     } catch { /* 配额满则跳过快照，不阻断导入 */ }
     setWorkouts(data.workouts)
@@ -237,7 +238,7 @@ export default function App() {
           )}
           {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} settings={settings} activities={activities} onUpdateSettings={updateSettings} />}
           {tab === 'history' && (
-            <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+            <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} activities={activities} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
           )}
         </main>
 

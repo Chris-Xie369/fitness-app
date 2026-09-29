@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MealEntry, MetricEntry, Routine, WaterEntry, Workout } from '../types'
+import type { ActivityEntry, MealEntry, MetricEntry, Routine, WaterEntry, Workout } from '../types'
 import type { BackupData } from '../storage'
 import { backupMetaWarning, dismissBackupHint, exportBackup, loadBackupHintTimes, markExported, parseBackup } from '../storage'
 import { backupHintState } from '../lib/backup'
@@ -29,6 +29,7 @@ export function HistoryTab({
   metrics,
   routines,
   water,
+  activities,
   onDelete,
   onRemoveExercise,
   onUpdateSets,
@@ -43,6 +44,7 @@ export function HistoryTab({
   metrics: MetricEntry[]
   routines: Routine[]
   water: WaterEntry[]
+  activities: ActivityEntry[]
   onDelete: (id: string) => void
   onRemoveExercise: (workoutId: string, exerciseId: string) => void
   onUpdateSets: (workoutId: string, exerciseId: string, sets: { reps: number; weight?: number }[]) => void
@@ -156,7 +158,7 @@ export function HistoryTab({
     if (!pending) return
     const photoTotal = pending.photos?.length ?? 0
     const result = await onImport(pending)
-    let text = `导入成功：${pending.workouts.length} 天训练 · ${(pending.metrics?.length ?? 0)} 条身体记录 · ${pending.meals.length} 条饮食 · ${pending.routines.length} 个模板`
+    let text = `导入成功：${pending.workouts.length} 天训练 · ${(pending.metrics?.length ?? 0)} 条身体记录 · ${pending.meals.length} 条饮食 · ${(pending.activities?.length ?? 0)} 条运动 · ${pending.routines.length} 个模板`
     if (photoTotal > 0 && result) {
       text += ` · 照片恢复 ${result.restored}/${photoTotal} 张`
       if (result.skipped > 0) text += `（${result.skipped} 张无法恢复）`
@@ -436,7 +438,7 @@ export function HistoryTab({
         {pending && (
           <div className="mt-3 rounded-xl bg-paper border border-clay/30 p-3 text-[12px]">
             <p className="text-ink">
-              本机现有 {workouts.length} 天训练 · {meals.length} 条饮食 · {metrics.length} 条身体记录 · {routines.length} 个模板 · {water.length} 天饮水，将被替换为备份中的 {pending.workouts.length} 天训练 · {pending.meals.length} 条饮食 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
+              本机现有 {workouts.length} 天训练 · {meals.length} 条饮食 · {metrics.length} 条身体记录 · {routines.length} 个模板 · {water.length} 天饮水 · {activities.length} 条运动，将被替换为备份中的 {pending.workouts.length} 天训练 · {pending.meals.length} 条饮食 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水 · {(pending.activities?.length ?? 0)} 条运动{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
             </p>
             <p className="mt-1 text-muted">导入前已自动保存一份当前数据快照，误操作可联系开发者从本地恢复。</p>
             {pendingWarning && <p className="mt-1 text-clay">{pendingWarning}</p>}
