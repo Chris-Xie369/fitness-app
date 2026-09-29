@@ -55,6 +55,18 @@ export type WaterEntry = {
   updatedAt: number
 }
 
+// 运动消耗（慢跑/步行等户外活动；健身房力量训练不计——消耗估算误差太大）
+export type ActivityKind = 'run' | 'walk' | 'brisk' | 'other'
+
+export type ActivityEntry = {
+  id: string
+  date: string
+  kind: ActivityKind
+  minutes: number
+  kcal: number
+  createdAt: number
+}
+
 // 应用设置（profile 字段用于派生 BMI/BMR，可选）
 export type AppSettings = {
   weeklyGoalDays: number

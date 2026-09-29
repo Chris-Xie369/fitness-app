@@ -1,4 +1,4 @@
-import type { AppSettings, BodyEntry, MealEntry, MealType, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
+import type { ActivityEntry, AppSettings, BodyEntry, MealEntry, MealType, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
@@ -200,6 +200,41 @@ function isValidWater(w: unknown): w is WaterEntry {
   )
 }
 
+const ACTIVITIES_KEY = 'fitness-app:activities'
+const ACTIVITY_KINDS = ['run', 'walk', 'brisk', 'other']
+
+export function isValidActivity(a: unknown): a is ActivityEntry {
+  if (!a || typeof a !== 'object') return false
+  const x = a as Record<string, unknown>
+  return (
+    typeof x.id === 'string' &&
+    isValidDate(x.date) &&
+    ACTIVITY_KINDS.includes(x.kind as string) &&
+    isNum(x.minutes) && x.minutes >= 1 && x.minutes <= 600 &&
+    isNum(x.kcal) && x.kcal > 0 && x.kcal <= 5000 &&
+    isNum(x.createdAt)
+  )
+}
+
+export function loadActivities(): ActivityEntry[] {
+  try {
+    const raw = localStorage.getItem(ACTIVITIES_KEY)
+    if (!raw) return []
+    const data: unknown = JSON.parse(raw)
+    return Array.isArray(data) ? data.filter(isValidActivity) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveActivities(activities: ActivityEntry[]): void {
+  try {
+    localStorage.setItem(ACTIVITIES_KEY, JSON.stringify(activities))
+  } catch {
+    /* 静默失败 */
+  }
+}
+
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
@@ -294,7 +329,7 @@ export function saveMetrics(metrics: MetricEntry[]): void {
 
 // ===== 备份导出 / 导入 =====
 
-export type BackupData = { workouts: Workout[]; body?: BodyEntry[]; metrics: MetricEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; settings?: AppSettings; photos?: unknown[] }
+export type BackupData = { workouts: Workout[]; body?: BodyEntry[]; metrics: MetricEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; activities: ActivityEntry[]; settings?: AppSettings; photos?: unknown[] }
 
 function isNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
@@ -367,6 +402,7 @@ export function parseBackup(text: string): BackupData | null {
   const meals = (pick('meals', (x) => isValidMeal(x)) as unknown as MealEntry[]).map((m) => ({ ...m, id: restoreId() }))
   const routines = pick('routines', isValidRoutine) as unknown as Routine[]
   const water = pick('water', isValidWater) as unknown as WaterEntry[]
+  const activities = (pick('activities', (x) => isValidActivity(x)) as unknown as ActivityEntry[]).map((a) => ({ ...a, id: restoreId() }))
   const rawSettings = (obj.settings ?? null) as Record<string, unknown> | null
   const settings: AppSettings | undefined = rawSettings
     ? {
@@ -391,11 +427,12 @@ export function parseBackup(text: string): BackupData | null {
     meals.length === 0 &&
     routines.length === 0 &&
     water.length === 0 &&
+    activities.length === 0 &&
     photos.length === 0 &&
     !hasProfile
   )
     return null
-  return { workouts, body: [], metrics, meals, routines, water, settings, photos }
+  return { workouts, body: [], metrics, meals, routines, water, activities, settings, photos }
 }
 
 // 备份顶层版本/来源警告（parseBackup 通过后调用）：未来版本备份给用户显式提示
@@ -462,6 +499,7 @@ export function exportBackup(): string {
       meals: loadMeals(),
       routines: loadRoutines(),
       water: loadWater(),
+      activities: loadActivities(),
       settings: loadSettings(),
     },
     null,

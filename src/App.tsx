@@ -13,10 +13,10 @@ import { newlySetPRs, weekGoalJustReached, weekKey, type CelebrationItem } from 
 import { deleteRoutine, upsertRoutine } from './lib/routines'
 import { restorePhotos } from './lib/photos'
 import { useRestTimer } from './hooks/useRestTimer'
-import { loadMeals, loadMetrics, loadRoutines, loadSettings, loadWater, loadWorkouts, saveMeals, saveMetrics, saveRoutines, saveSettings, saveWater, saveWorkouts } from './storage'
+import { loadActivities, loadMeals, loadMetrics, loadRoutines, loadSettings, loadWater, loadWorkouts, saveActivities, saveMeals, saveMetrics, saveRoutines, saveSettings, saveWater, saveWorkouts } from './storage'
 import type { BackupData } from './storage'
 import { todayStr } from './lib/streak'
-import type { AppSettings, MealEntry, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
+import type { ActivityEntry, AppSettings, MealEntry, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
 
 const uid = (): string =>
   globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
@@ -29,6 +29,7 @@ export default function App() {
   const [meals, setMeals] = useState<MealEntry[]>(() => loadMeals())
   const [routines, setRoutines] = useState<Routine[]>(() => loadRoutines())
   const [water, setWater] = useState<WaterEntry[]>(() => loadWater())
+  const [activities, setActivities] = useState<ActivityEntry[]>(() => loadActivities())
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [metrics, setMetrics] = useState<MetricEntry[]>(() => loadMetrics())
   const [tab, setTab] = useState<Tab>('diet')
@@ -46,6 +47,7 @@ export default function App() {
   useEffect(() => saveMeals(meals), [meals])
   useEffect(() => saveRoutines(routines), [routines])
   useEffect(() => saveWater(water), [water])
+  useEffect(() => saveActivities(activities), [activities])
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => saveMetrics(metrics), [metrics])
 
@@ -141,6 +143,12 @@ export default function App() {
       return [row, ...prev.filter((w) => w.date !== date)]
     })
   }
+  function addActivity(a: ActivityEntry) {
+    setActivities((prev) => [a, ...prev])
+  }
+  function deleteActivity(id: string) {
+    setActivities((prev) => prev.filter((x) => x.id !== id))
+  }
   function updateSettings(patch: Partial<AppSettings>) {
     setSettings((prev) => ({ ...prev, ...patch }))
   }
@@ -187,6 +195,7 @@ export default function App() {
     setMeals(data.meals)
     setRoutines(data.routines)
     setWater(data.water ?? [])
+    setActivities(data.activities ?? [])
     if (data.settings) setSettings(data.settings) // 老备份无 settings 时保留当前设置
     return data.photos?.length ? restorePhotos(data.photos) : Promise.resolve(undefined)
   }
@@ -216,7 +225,7 @@ export default function App() {
               restTimer={restTimer}
             />
           )}
-          {tab === 'diet' && <DietTab meals={meals} water={water} workouts={workouts} metrics={metrics} settings={settings} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />}
+          {tab === 'diet' && <DietTab meals={meals} water={water} workouts={workouts} metrics={metrics} settings={settings} activities={activities} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onAddActivity={addActivity} onDeleteActivity={deleteActivity} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />}
           {tab === 'body' && (
             <BodyTab
               metrics={metrics}
@@ -226,7 +235,7 @@ export default function App() {
               onUpdateSettings={updateSettings}
             />
           )}
-          {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} settings={settings} onUpdateSettings={updateSettings} />}
+          {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} settings={settings} activities={activities} onUpdateSettings={updateSettings} />}
           {tab === 'history' && (
             <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
           )}

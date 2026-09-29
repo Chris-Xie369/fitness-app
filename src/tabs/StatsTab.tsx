@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { MealEntry, Workout } from '../types'
-import { exerciseRanking, heatmap, overview, weeklyTotals } from '../lib/stats'
+import type { ActivityEntry, MealEntry, Workout } from '../types'
+import { exerciseRanking, heatmap, mondayOf, overview, weeklyTotals } from '../lib/stats'
 import { avgKcalByTraining } from '../lib/diet'
 import { volumeTrendInsight, weeklyInsight, weeklyReport } from '../lib/weekly'
 import { exerciseProgress } from '../lib/progress'
@@ -43,11 +43,13 @@ export function StatsTab({
   workouts,
   meals,
   settings,
+  activities,
   onUpdateSettings,
 }: {
   workouts: Workout[]
   meals: MealEntry[]
   settings: { weeklyGoalDays: number; waterGoal: number }
+  activities: ActivityEntry[]
   onUpdateSettings: (patch: Partial<{ weeklyGoalDays: number; waterGoal: number }>) => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
@@ -86,6 +88,16 @@ export function StatsTab({
   const prByName = new Map(prsAll.map((p) => [p.name, p]))
   const weekdayName = '一二三四五六日'[report.elapsedDays - 1]
   const volumeInsight = volumeTrendInsight(workouts)
+  // 本周/上周运动消耗合计（周一为周首，与周回顾同口径）
+  const inWeek = (date: string, mondayOffset: number): boolean => {
+    const monday = mondayOf(new Date())
+    const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + mondayOffset)
+    const [y, m, d] = date.split('-').map(Number)
+    const t = new Date(y, m - 1, d).getTime()
+    return t >= start.getTime() && t < start.getTime() + 7 * 86400000
+  }
+  const burnThis = activities.filter((a) => inWeek(a.date, 0)).reduce((n, a) => n + a.kcal, 0)
+  const burnLast = activities.filter((a) => inWeek(a.date, -7)).reduce((n, a) => n + a.kcal, 0)
 
   if (selected) {
     const points = exerciseProgress(workouts, selected).map((p) => ({
@@ -156,7 +168,7 @@ export function StatsTab({
 
       {/* 本周回顾②：指标对比（本周 vs 上周） */}
       <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
-        <div className="grid grid-cols-5 gap-1 text-center">
+        <div className="grid grid-cols-3 gap-x-1 gap-y-3 text-center">
           <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} hasPrev={report.lastWeek.trainDays > 0} unit="天" />
           <WeekCell label="训练时长" cur={report.thisWeek.durationMin || null} prev={report.lastWeek.durationMin} hasPrev={report.lastWeek.trainDays > 0} unit="分" />
           <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} hasPrev={report.lastWeek.trainDays > 0} unit="组" />
@@ -166,6 +178,14 @@ export function StatsTab({
             cur={report.thisWeek.kcalDays > 0 ? report.thisWeek.avgKcal : null}
             prev={report.lastWeek.avgKcal}
             hasPrev={report.lastWeek.kcalDays > 0}
+            unit="kcal"
+            neutral
+          />
+          <WeekCell
+            label="运动消耗"
+            cur={burnThis > 0 ? burnThis : null}
+            prev={burnLast}
+            hasPrev={burnLast > 0}
             unit="kcal"
             neutral
           />

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
-import type { AppSettings, MealEntry, MealType, MetricEntry, WaterEntry, Workout } from '../types'
+import type { ActivityEntry, ActivityKind, AppSettings, MealEntry, MealType, MetricEntry, WaterEntry, Workout } from '../types'
 import { dayKcal, dayMacros, learnedKcal, mealMacros, MEAL_TYPES, recentMeals, weeklyKcal } from '../lib/diet'
 import { kcalFor, searchFoods } from '../lib/foods'
+import { dayBurn, estimateKcal } from '../lib/activity'
 import { ageFromBirthYear, bmrMifflin } from '../lib/body'
 import { ACTIVITY_LEVELS, calorieTarget, dayAdvice, PACE_OPTIONS, TRAINING_DAY_BONUS, weekAdherence, type DietGoal } from '../lib/nutrition'
 import { dayLabel, shiftDate } from '../lib/date'
@@ -79,9 +80,12 @@ export function DietTab({
   workouts,
   metrics,
   settings,
+  activities,
   onAdd,
   onDelete,
   onChangeWater,
+  onAddActivity,
+  onDeleteActivity,
   onUpdateSettings,
   onCopyDay,
 }: {
@@ -90,9 +94,12 @@ export function DietTab({
   workouts: Workout[]
   metrics: MetricEntry[]
   settings: AppSettings
+  activities: ActivityEntry[]
   onAdd: (m: MealEntry) => void
   onDelete: (id: string) => void
   onChangeWater: (date: string, delta: number) => void
+  onAddActivity: (a: ActivityEntry) => void
+  onDeleteActivity: (id: string) => void
   onUpdateSettings: (patch: Partial<AppSettings>) => void
   onCopyDay: (srcDate: string, targetDate: string) => void
 }) {
@@ -144,8 +151,13 @@ export function DietTab({
   // 「最近食物」快捷胶囊全 App 只在一张卡显示：当前聚焦的餐（默认早餐），避免四份重复
   const [capsuleMeal, setCapsuleMeal] = useState<MealType>('breakfast')
   const [copyConfirm, setCopyConfirm] = useState(false)
+  // 运动消耗录入草稿
+  const [actKind, setActKind] = useState<ActivityKind>('run')
+  const [actMinutes, setActMinutes] = useState('')
+  const [actKcal, setActKcal] = useState('')
   const recent = recentMeals(meals)
   const todayGlasses = water.find((w) => w.date === date)?.glasses ?? 0
+  const burn = dayBurn(activities, date)
 
   const clay = token('--color-clay', '#B8553A')
   const ink = token('--color-ink', '#211C16')
@@ -157,6 +169,8 @@ export function DietTab({
     setDrafts(freshDrafts())
     setCopyConfirm(false)
     setSuggest(null)
+    setActMinutes('')
+    setActKcal('')
   }
   // 函数式更新：快速连点不丢步
   function stepDate(delta: number) {
@@ -167,6 +181,8 @@ export function DietTab({
     setDrafts(freshDrafts())
     setCopyConfirm(false)
     setSuggest(null)
+    setActMinutes('')
+    setActKcal('')
   }
 
   // 「最近食物」快捷胶囊只在一张卡显示：点/聚焦哪个餐的输入框就归属哪餐
@@ -450,6 +466,11 @@ export function DietTab({
             <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/40' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
           </div>
           <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
+          {burn > 0 && (
+            <p className="mt-1 text-[12px] text-muted tabular-nums">
+              运动消耗 {burn} kcal · {total - burn >= 0 ? `净摄入 ${total - burn} kcal` : `缺口 ${burn - total} kcal`}
+            </p>
+          )}
           <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
           {targetInfo.clamped && goal === 'lose' && (
             <p className="mt-1 text-[11px] text-clay">目标已按安全下限调整（{settings.sex === 'male' ? 1500 : 1200} kcal），建议放慢速度</p>
@@ -493,6 +514,75 @@ export function DietTab({
             >＋</button>
           </span>
         </div>
+      </div>
+
+      {/* 运动消耗：户外慢跑/步行等（健身房力量训练不计——估算误差太大） */}
+      <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
+        <p className="text-[15px] text-ink">🏃 运动消耗</p>
+        {(() => {
+          const dayActs = activities.filter((a) => a.date === date)
+          return dayActs.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {dayActs.map((a) => (
+                <li key={a.id} className="flex items-center justify-between text-[14px]">
+                  <span className="text-ink">{({ run: '慢跑', walk: '步行', brisk: '快走', other: '其他' } as Record<ActivityKind, string>)[a.kind]} {a.minutes} 分钟</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-muted tabular-nums">{a.kcal} kcal</span>
+                    <button onClick={() => onDeleteActivity(a.id)} aria-label="删除这条运动记录" className="-m-3 p-3 leading-none text-muted/50 hover:text-clay text-sm">✕</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )
+        })()}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {([['run', '慢跑'], ['walk', '步行'], ['brisk', '快走'], ['other', '其他']] as [ActivityKind, string][]).map(([k, l]) => (
+            <button
+              key={k}
+              onClick={() => setActKind(k)}
+              className={`px-2.5 py-1 rounded-full border text-[12px] transition ${actKind === k ? 'bg-clay text-white border-clay' : 'border-line text-muted hover:text-clay'}`}
+            >{l}</button>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            value={actMinutes}
+            onChange={(e) => setActMinutes(e.target.value)}
+            inputMode="numeric"
+            placeholder="分钟"
+            className="w-20 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+          />
+          {(() => {
+            const mins = Number(actMinutes)
+            const est = actKind !== 'other' && latestWeight && Number.isFinite(mins) && mins > 0 ? estimateKcal(actKind, mins, latestWeight) : null
+            return (
+              <input
+                value={actKcal}
+                onChange={(e) => setActKcal(e.target.value)}
+                inputMode="numeric"
+                placeholder={est != null ? `≈${est} kcal` : 'kcal'}
+                className="w-24 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+              />
+            )
+          })()}
+          <button
+            onClick={() => {
+              const m = Number(actMinutes)
+              if (!Number.isFinite(m) || m < 1 || m > 600) return
+              const est = actKind !== 'other' && latestWeight ? estimateKcal(actKind, m, latestWeight) : 0
+              const k = actKcal ? Math.round(Number(actKcal)) : est
+              if (!Number.isFinite(k) || k <= 0 || k > 5000) return
+              onAddActivity({ id: uid(), date, kind: actKind, minutes: m, kcal: k, createdAt: Date.now() })
+              setActMinutes('')
+              setActKcal('')
+            }}
+            disabled={!(Number(actMinutes) >= 1)}
+            className="shrink-0 w-9 h-9 rounded-xl bg-clay text-white text-[18px] leading-none transition enabled:hover:bg-clay/90 enabled:active:scale-95 disabled:bg-line disabled:text-muted-weak"
+          >＋</button>
+        </div>
+        <p className="mt-1 text-[10px] text-muted-weak">
+          慢跑≈8 MET · 快走≈5 · 步行≈3.5；{latestWeight ? '按最近体重估算，可手动改' : '在身体页填体重后自动估算'}；健身房力量训练不计入此处
+        </p>
       </div>
 
       {meals.length === 0 && (
