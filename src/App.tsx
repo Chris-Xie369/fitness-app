@@ -112,7 +112,7 @@ export default function App() {
     setWorkouts((prev) =>
       prev.map((w) =>
         w.id === workoutId
-          ? { ...w, exercises: w.exercises.map((ex) => (ex.id === exerciseId ? { ...ex, sets } : ex)) }
+          ? { ...w, exercises: w.exercises.map((ex) => (ex.id === exerciseId ? { ...ex, sets } : ex)), updatedAt: Date.now() }
           : w,
       ),
     )
@@ -120,7 +120,7 @@ export default function App() {
 
   // 修改某天训练的备注
   function updateWorkoutNote(workoutId: string, note: string) {
-    setWorkouts((prev) => prev.map((w) => (w.id === workoutId ? { ...w, note: note.trim() || undefined } : w)))
+    setWorkouts((prev) => prev.map((w) => (w.id === workoutId ? { ...w, note: note.trim() || undefined, updatedAt: Date.now() } : w)))
   }
 
   function addMeal(m: MealEntry) {

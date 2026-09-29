@@ -553,37 +553,33 @@ export function DietTab({
             className="w-20 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
           />
           {(() => {
+            // 同一套有效性计算同时驱动占位符与保存按钮（单点真相）
             const mins = Number(actMinutes)
-            const minsOk = Number.isFinite(mins) && mins >= 1 && mins <= 600
-            const est = actKind !== 'other' && latestWeight && minsOk ? estimateKcal(actKind, mins, latestWeight) : null
-            return (
-              <input
-                value={actKcal}
-                onChange={(e) => setActKcal(e.target.value)}
-                inputMode="numeric"
-                placeholder={est != null ? `≈${est} kcal` : 'kcal'}
-                className="w-24 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
-              />
-            )
-          })()}
-          {(() => {
-            const m = Number(actMinutes)
-            const minutesOk = Number.isFinite(m) && m >= 1 && m <= 600
-            const est = actKind !== 'other' && latestWeight && minutesOk ? estimateKcal(actKind, m, latestWeight) : 0
-            const k = actKcal ? Math.round(Number(actKcal)) : est
-            const kcalOk = Number.isFinite(k) && k > 0 && k <= 5000
+            const minutesOk = Number.isFinite(mins) && mins >= 1 && mins <= 600
+            const est = actKind !== 'other' && latestWeight && minutesOk ? estimateKcal(actKind, mins, latestWeight) : null
+            const k = actKcal ? Math.round(Number(actKcal)) : (est ?? 0)
+            const kcalOk = Number.isFinite(k) && k > 0 && k <= 9000
             const canSave = minutesOk && kcalOk
             return (
-              <button
-                onClick={() => {
-                  if (!canSave) return
-                  onAddActivity({ id: uid(), date, kind: actKind, minutes: m, kcal: k, createdAt: Date.now() })
-                  setActMinutes('')
-                  setActKcal('')
-                }}
-                disabled={!canSave}
-                className="shrink-0 w-9 h-9 rounded-xl bg-clay text-white text-[18px] leading-none transition enabled:hover:bg-clay/90 enabled:active:scale-95 disabled:bg-line disabled:text-muted-weak"
-              >＋</button>
+              <>
+                <input
+                  value={actKcal}
+                  onChange={(e) => setActKcal(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={est != null ? `≈${est} kcal` : 'kcal'}
+                  className="w-24 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                />
+                <button
+                  onClick={() => {
+                    if (!canSave) return
+                    onAddActivity({ id: uid(), date, kind: actKind, minutes: mins, kcal: k, createdAt: Date.now() })
+                    setActMinutes('')
+                    setActKcal('')
+                  }}
+                  disabled={!canSave}
+                  className="shrink-0 w-9 h-9 rounded-xl bg-clay text-white text-[18px] leading-none transition enabled:hover:bg-clay/90 enabled:active:scale-95 disabled:bg-line disabled:text-muted-weak"
+                >＋</button>
+              </>
             )
           })()}
         </div>

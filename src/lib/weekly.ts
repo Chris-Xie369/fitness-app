@@ -76,7 +76,8 @@ export function weeklyReport(workouts: Workout[], kcalByDate: Map<string, number
 export function weeklyInsight(r: WeeklyReport): string {
   const t = r.thisWeek
   const l = r.lastWeek
-  if (t.trainDays === 0) return '这周还没开练，挑个时间完成第一次打卡吧 💪'
+  if (t.trainDays === 0 && t.kcalDays === 0) return '这周还没开始记录，先从一次运动或一次饮食开始吧'
+  if (t.trainDays === 0) return '这周还没进健身房，但已经在记录，继续保持 💪'
   if (l.trainDays === 0) return `这周已练 ${t.trainDays} 天，开了个好头，继续保持！`
   const parts: string[] = []
   const dd = t.trainDays - l.trainDays

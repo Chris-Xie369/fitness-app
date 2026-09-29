@@ -211,7 +211,7 @@ export function isValidActivity(a: unknown): a is ActivityEntry {
     isValidDate(x.date) &&
     ACTIVITY_KINDS.includes(x.kind as string) &&
     isNum(x.minutes) && x.minutes >= 1 && x.minutes <= 600 &&
-    isNum(x.kcal) && x.kcal > 0 && x.kcal <= 5000 &&
+    isNum(x.kcal) && x.kcal > 0 && x.kcal <= 9000 &&
     isNum(x.createdAt)
   )
 }
