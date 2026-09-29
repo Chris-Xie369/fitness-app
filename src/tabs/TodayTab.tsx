@@ -30,7 +30,7 @@ export function TodayTab({
   const now = new Date()
   const dateLabel = `${now.getMonth() + 1} 月 ${now.getDate()} 日 · 周${WEEKDAYS[now.getDay()]}`
 
-  // 刚保存完：提示成功，并把新动作（列表最后一条）滚动到可见位置
+  // 刚保存完：提示成功
   const [toast, setToast] = useState<string | null>(null)
   useEffect(() => {
     // 补记过去日的保存不在今天页反馈（历史页有自己的确认）；成就弹层开着时等它关闭再反馈

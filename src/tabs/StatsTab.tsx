@@ -196,11 +196,13 @@ export function StatsTab({
         </div>
       </div>
 
-      {/* 累计概览（"本周训练"已在上方周卡里，不再重复） */}
+      {/* 累计概览（"本周训练"已在上方周卡里，不再重复；纯运动用户无训练数据时不显示） */}
+      {workouts.length > 0 && (
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Stat value={ov.totalDays} unit="天" label="累计打卡" />
         <Stat value={ov.totalSets} unit="组" label="累计完成" />
       </div>
+      )}
 
       {/* 近 8 周训练量 */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
@@ -239,6 +241,7 @@ export function StatsTab({
       )}
 
       {/* 动作榜：组数 + 历史最重 + 进步曲线入口（原「个人记录」卡已并入） */}
+      {ranking.length > 0 && (
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">
         <p className="font-display text-[13px] italic text-muted mb-1">动作榜 · Top 5</p>
         <p className="text-[10px] text-muted-weak mb-3">1RM = 最多只能举起 1 次的估算重量，用来衡量力量进步</p>
@@ -279,6 +282,8 @@ export function StatsTab({
       </div>
 
 
+
+      )}
 
       {/* 打卡热力：左侧星期坐标，12 列 × 周一~周日；今天用描边标出 */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">

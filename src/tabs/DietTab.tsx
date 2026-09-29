@@ -554,7 +554,8 @@ export function DietTab({
           />
           {(() => {
             const mins = Number(actMinutes)
-            const est = actKind !== 'other' && latestWeight && Number.isFinite(mins) && mins > 0 ? estimateKcal(actKind, mins, latestWeight) : null
+            const minsOk = Number.isFinite(mins) && mins >= 1 && mins <= 600
+            const est = actKind !== 'other' && latestWeight && minsOk ? estimateKcal(actKind, mins, latestWeight) : null
             return (
               <input
                 value={actKcal}
