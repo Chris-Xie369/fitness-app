@@ -28,9 +28,9 @@ function WeekTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
   )
 }
 
-// 热力点颜色：0 组=空槽，其余按组数分 4 档 clay 深浅
-function heatColor(sets: number, clay: string, line: string): string {
-  if (sets === 0) return line
+// 热力点颜色：无记录=空槽；有记录最低档 clay（纯打卡 0 组也算），组数分档加深
+function heatColor(trained: boolean, sets: number, clay: string, line: string): string {
+  if (!trained) return line
   const alpha = sets <= 2 ? 0.3 : sets <= 5 ? 0.55 : sets <= 9 ? 0.78 : 1
   const hex = clay.replace('#', '')
   const r = parseInt(hex.slice(0, 2), 16)
@@ -298,10 +298,10 @@ export function StatsTab({
             {cells.map((c) => (
               <span
                 key={c.date}
-                title={`${c.date} · ${c.sets} 组`}
+                title={`${c.date} · ${c.sets > 0 ? `${c.sets} 组` : '纯打卡'}`}
                 className="h-2.5 w-2.5 rounded-full"
                 style={{
-                  backgroundColor: heatColor(c.sets, clay, line),
+                  backgroundColor: heatColor(c.trained, c.sets, clay, line),
                   ...(c.date === today ? { boxShadow: `0 0 0 1.5px ${ink}` } : {}),
                 }}
               />
@@ -311,7 +311,7 @@ export function StatsTab({
         <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-muted">
           少
           {[0, 2, 5, 9, 12].map((n) => (
-            <span key={n} className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: heatColor(n, clay, line) }} />
+            <span key={n} className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: heatColor(true, n, clay, line) }} />
           ))}
           多
         </div>

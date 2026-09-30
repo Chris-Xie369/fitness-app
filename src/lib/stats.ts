@@ -48,10 +48,11 @@ export function weeklyTotals(workouts: Workout[], n = 8, now = new Date()): Week
     let days = 0
     let sets = 0
     for (let dow = 0; dow < 7; dow++) {
-      const s = byDate.get(dateKey(new Date(start.getFullYear(), start.getMonth(), start.getDate() + dow)))
-      if (s) {
+      const key = dateKey(new Date(start.getFullYear(), start.getMonth(), start.getDate() + dow))
+      // 有记录即算训练日（纯打卡 0 组也计数），组数按实际累计
+      if (byDate.has(key)) {
         days++
-        sets += s
+        sets += byDate.get(key) ?? 0
       }
     }
     buckets.push({ label: `${mdLabel(start)}周`, days, sets })
@@ -78,7 +79,7 @@ export function exerciseRanking(workouts: Workout[]): ExerciseStat[] {
     .sort((a, b) => b.sets - a.sets || b.times - a.times || a.name.localeCompare(b.name, 'zh'))
 }
 
-export type HeatCell = { date: string; sets: number }
+export type HeatCell = { date: string; sets: number; trained: boolean }
 
 // 最近 n 周打卡热力：按列（周）排列，每列周一→周日，供 CSS grid-flow-col 使用
 export function heatmap(workouts: Workout[], n = 12): HeatCell[] {
@@ -90,7 +91,7 @@ export function heatmap(workouts: Workout[], n = 12): HeatCell[] {
     for (let dow = 0; dow < 7; dow++) {
       const d = new Date(colMonday.getFullYear(), colMonday.getMonth(), colMonday.getDate() + dow)
       const key = dateKey(d)
-      cells.push({ date: key, sets: byDate.get(key) ?? 0 })
+      cells.push({ date: key, sets: byDate.get(key) ?? 0, trained: byDate.has(key) })
     }
   }
   return cells

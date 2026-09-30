@@ -59,9 +59,9 @@ export default function App() {
   // 同一天再记：动作追加进当天的 workout（与体重"同日更新"语义一致），而不是新建一条
   function addWorkout(w: Workout) {
     const appended = workouts.some((x) => x.date === w.date)
-    // 训练时长：仅「今天首次新建」时记录；补记过去日不带时长。异常长（>5小时）视为挂起忽略
+    // 训练时长：仅「今天首次新建」且有明细时记录；补记过去日不带时长。异常长（>5小时）视为挂起忽略
     const isTodaySave = w.date === todayStr()
-    const durationSec = (isTodaySave && workoutStart) ? Math.min(18000, Math.max(30, Math.round((Date.now() - workoutStart) / 1000))) : undefined
+    const durationSec = (isTodaySave && workoutStart && w.exercises.length > 0) ? Math.min(18000, Math.max(30, Math.round((Date.now() - workoutStart) / 1000))) : undefined
     // updatedAt 只在同日追加时写；新建不写（与类型注释一致，避免「记录于=更新于」的冗余显示）
     const now = Date.now()
     const withDuration: Workout = (!appended && durationSec) ? { ...w, durationSec } : w
@@ -96,6 +96,10 @@ export default function App() {
     // 记今天跳今天页；补记过去日跳历史页（今天页看不到那条）
     setTab(w.date === todayStr() ? 'today' : 'history')
   }
+  // 一键打卡：不填明细先占住今天的训练日（周目标/连续天数照常计数），之后可再补记动作
+  function checkInToday() {
+    addWorkout({ id: uid(), date: todayStr(), createdAt: Date.now(), exercises: [] })
+  }
   function deleteWorkout(id: string) {
     setWorkouts((prev) => prev.filter((w) => w.id !== id))
   }
@@ -104,7 +108,8 @@ export default function App() {
     setWorkouts((prev) =>
       prev
         .map((w) => (w.id === workoutId ? { ...w, exercises: w.exercises.filter((ex) => ex.id !== exerciseId) } : w))
-        .filter((w) => w.exercises.length > 0),
+        // 只清理本次刚被删空的目标那条；其他空明细的纯打卡记录保留
+        .filter((w) => w.id !== workoutId || w.exercises.length > 0),
     )
   }
   // 修改历史训练里某动作的组数据（修正错录，不用删除重录）
@@ -211,6 +216,7 @@ export default function App() {
               lastAdded={lastAdded}
               weeklyGoalDays={settings.weeklyGoalDays}
               hasCelebration={achQueue.length > 0}
+              onCheckIn={checkInToday}
               onGoRecord={() => setTab('record')}
               onGoHistory={() => setTab('history')}
             />

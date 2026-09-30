@@ -11,6 +11,7 @@ export function TodayTab({
   workouts,
   lastAdded,
   weeklyGoalDays,
+  onCheckIn,
   onGoRecord,
   onGoHistory,
   hasCelebration,
@@ -19,6 +20,7 @@ export function TodayTab({
   lastAdded: LastAdded | null
   weeklyGoalDays: number
   hasCelebration: boolean
+  onCheckIn: () => void
   onGoRecord: () => void
   onGoHistory: () => void
 }) {
@@ -76,20 +78,36 @@ export function TodayTab({
         </div>
       </div>
 
-      {todayWorkout && (() => {
+      {todayWorkout && todayWorkout.exercises.length === 0 && (
+        <p className="mt-5 text-center text-[13px] text-muted">
+          今天已打卡 · 明细未记录 ·{' '}
+          <button onClick={onGoRecord} className="text-clay hover:underline">补记 ›</button>
+        </p>
+      )}
+
+      {todayWorkout && todayWorkout.exercises.length > 0 && (() => {
         const sets = todayWorkout.exercises.reduce((n, ex) => n + ex.sets.length, 0)
         const volume = Math.round(todayWorkout.exercises.reduce((n, ex) => n + ex.sets.reduce((a, s) => a + (s.weight ?? 0) * s.reps, 0), 0))
         return (
           <p className="mt-5 text-center text-[13px] text-muted tabular-nums">
-            今日已练 {todayWorkout.exercises.length} 个动作 · {sets} 组{volume > 0 ? ` · ${volume} kg` : ''}
+            今天已练 {todayWorkout.exercises.length} 个动作 · {sets} 组{volume > 0 ? ` · ${volume} kg` : ''}
             {' '}· <button onClick={onGoHistory} className="text-clay hover:underline">查看明细 ›</button>
           </p>
         )
       })()}
 
+      {!todayWorkout && (
+        <button
+          onClick={onCheckIn}
+          className="mt-6 w-full py-3 rounded-xl bg-clay text-white font-medium hover:bg-clay/90 active:scale-[0.98] transition"
+        >
+          一键打卡
+        </button>
+      )}
+
       <button
         onClick={onGoRecord}
-        className="mt-6 w-full py-3 rounded-xl bg-clay text-white font-medium hover:bg-clay/90 active:scale-[0.98] transition"
+        className={`${todayWorkout ? 'mt-6 bg-clay text-white font-medium hover:bg-clay/90' : 'mt-3 border border-line text-[14px] text-muted hover:text-clay hover:border-clay/40'} w-full py-3 rounded-xl active:scale-[0.98] transition`}
       >
         {todayWorkout ? '再记一次' : '记录今天的训练'}
       </button>

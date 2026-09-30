@@ -285,6 +285,7 @@ export function HistoryTab({
           </div>
           {pickedWorkout ? (
             <ul className="mt-2 space-y-1">
+              {pickedWorkout.exercises.length === 0 && <li className="text-[13px] text-muted">这一天只打了卡，没有动作明细。</li>}
               {pickedWorkout.exercises.map((ex) => (
                 <li key={ex.id ?? ex.name} className="text-[13px] text-ink">
                   {ex.name}
@@ -316,8 +317,10 @@ export function HistoryTab({
                 <div>
                   <p className="font-display text-[15px] text-ink">{formatDate(w.date)}</p>
                   <p className="text-[12px] text-muted mt-0.5">
-                    {w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组{w.durationSec ? ` · ${Math.round(w.durationSec / 60)} 分钟` : ''}
-                    {' '}· 记录于 {fmtTime(w.createdAt)}{w.updatedAt && w.updatedAt > w.createdAt ? ` · 更新于 ${fmtTime(w.updatedAt)}` : ''}
+                    {w.exercises.length === 0
+                      ? <>纯打卡 · 记录于 {fmtTime(w.createdAt)}</>
+                      : <>{w.exercises.length} 个动作 · {w.exercises.reduce((n, ex) => n + ex.sets.length, 0)} 组{w.durationSec ? ` · ${Math.round(w.durationSec / 60)} 分钟` : ''}
+                        {' '}· 记录于 {fmtTime(w.createdAt)}{w.updatedAt && w.updatedAt > w.createdAt ? ` · 更新于 ${fmtTime(w.updatedAt)}` : ''}</>}
                   </p>
                   {editingNoteId === w.id ? (
                 <div className="mt-1.5 flex gap-1.5">
@@ -350,6 +353,7 @@ export function HistoryTab({
               </div>
               <div className="mt-2 h-px bg-line" />
               <ul className="mt-2 space-y-1">
+                {w.exercises.length === 0 && <li className="text-[13px] text-muted">这一天只打了卡，没有动作明细。</li>}
                 {w.exercises.map((ex) =>
                   editingId === ex.id ? (
                     <li key={ex.id ?? ex.name} className="rounded-xl bg-paper border border-line p-2.5">
