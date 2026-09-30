@@ -32,7 +32,7 @@ export default function App() {
   const [activities, setActivities] = useState<ActivityEntry[]>(() => loadActivities())
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [metrics, setMetrics] = useState<MetricEntry[]>(() => loadMetrics())
-  const [tab, setTab] = useState<Tab>('diet')
+  const [tab, setTab] = useState<Tab>('today')
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
   const [achQueue, setAchQueue] = useState<CelebrationItem[]>([])
   const [workoutStart, setWorkoutStart] = useState<number | null>(null)
@@ -243,9 +243,9 @@ export default function App() {
         </main>
 
         <nav className="flex border-t border-line bg-paper pb-[env(safe-area-inset-bottom)]">
-          <TabButton active={tab === 'today' || tab === 'history'} onClick={() => setTab('today')} label="打卡" icon={<TodayIcon />} />
           <TabButton active={tab === 'record'} onClick={() => setTab('record')} label="记录" icon={<RecordIcon />} />
           <TabButton active={tab === 'diet'} onClick={() => setTab('diet')} label="饮食" icon={<DietIcon />} />
+          <TabButton active={tab === 'today' || tab === 'history'} onClick={() => setTab('today')} label="打卡" icon={<TodayIcon />} />
           <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon={<BodyIcon />} />
           <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon={<StatsIcon />} />
         </nav>
@@ -263,7 +263,7 @@ function TabButton({ active, onClick, label, icon }: { active: boolean; onClick:
       aria-current={active ? 'page' : undefined}
       className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] transition ${active ? 'text-clay font-medium' : 'text-muted'}`}
     >
-      <span className={`rounded-xl px-2.5 py-1 leading-none transition ${active ? 'bg-clay/12' : ''}`}>{icon}</span>
+      <span className={`rounded-xl px-2.5 py-1 leading-none transition ${active ? 'bg-clay/15' : ''}`}>{icon}</span>
       {label}
     </button>
   )

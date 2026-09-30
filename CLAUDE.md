@@ -16,7 +16,7 @@
 - 进度条统一 `h-1.5 rounded-full bg-line`；填充语义：clay=正常/达标、ink/40=超出。
 - hero 数字必须 `tabular-nums`；56px 只留给连续天数 streak，其余 hero 封顶 40px。
 - 标题：卡内小标题统一 `font-display italic text-muted`；页面大标题 `font-display`。
-- 底部导航图标统一 SVG（icons.tsx，2.2px 描边），禁止引入 emoji 图标；正文 emoji 只允许成就/庆祝场景。
+- 底部导航图标统一 SVG（icons.tsx，26px 视觉尺寸、2.4px 描边），禁止引入 emoji 图标；正文 emoji 只允许成就/庆祝场景。
 
 ## 文案
 
