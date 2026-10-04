@@ -1,4 +1,5 @@
 import type { ActivityEntry, AppSettings, BodyEntry, MealEntry, MealType, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
+import { isValidMetricValue } from './lib/body'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
@@ -310,8 +311,7 @@ function isValidMetric(m: unknown): m is MetricEntry {
     isValidDate(x.date) &&
     METRIC_TYPES.includes(x.type as MetricType) &&
     isNum(x.value) &&
-    x.value > 0 &&
-    x.value < 1000 &&
+    isValidMetricValue(x.type as MetricType, x.value) &&
     isNum(x.createdAt)
   )
 }
@@ -337,8 +337,7 @@ export function loadMetrics(): MetricEntry[] {
             typeof b === 'object' &&
             isValidDate((b as BodyEntry).date) &&
             isNum((b as BodyEntry).weightKg) &&
-            (b as BodyEntry).weightKg > 0 &&
-            (b as BodyEntry).weightKg < 1000,
+            isValidMetricValue('weight', (b as BodyEntry).weightKg),
         )
         .map((b) => ({ id: b.id, date: b.date, type: 'weight' as const, value: b.weightKg, createdAt: 0 }))
       localStorage.setItem(METRICS_KEY, JSON.stringify(migrated))

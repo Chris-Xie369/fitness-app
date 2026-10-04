@@ -176,7 +176,7 @@ export function StatsTab({
           <WeekCell label="训练天数" cur={report.thisWeek.trainDays} prev={report.lastWeek.trainDays} hasPrev={report.lastWeek.trainDays > 0} unit="天" />
           <WeekCell label="训练时长" cur={report.thisWeek.durationMin || null} prev={report.lastWeek.durationMin} hasPrev={report.lastWeek.trainDays > 0} unit="分" />
           <WeekCell label="完成组数" cur={report.thisWeek.totalSets} prev={report.lastWeek.totalSets} hasPrev={report.lastWeek.trainDays > 0} unit="组" />
-          <WeekCell label="总容量" cur={report.thisWeek.tonnage} prev={report.lastWeek.tonnage} hasPrev={report.lastWeek.trainDays > 0} unit="kg" compact />
+          <WeekCell label="训练容量" cur={report.thisWeek.tonnage} prev={report.lastWeek.tonnage} hasPrev={report.lastWeek.trainDays > 0} unit="kg" compact />
           <WeekCell
             label={`日均热量${report.thisWeek.kcalDays > 0 ? `（${report.thisWeek.kcalDays} 天）` : ''}`}
             cur={report.thisWeek.kcalDays > 0 ? report.thisWeek.avgKcal : null}
@@ -194,6 +194,7 @@ export function StatsTab({
             neutral
           />
         </div>
+        <p className="mt-2 text-[10px] text-muted-weak text-center">训练容量 = 每组 重量×次数 相加，代表总训练量而非单次举起重量</p>
       </div>
 
       {/* 累计概览（"本周训练"已在上方周卡里，不再重复；纯运动用户无训练数据时不显示） */}

@@ -1,4 +1,22 @@
 export type Sex = 'male' | 'female'
+import type { MetricType } from '../types'
+
+// 各类身体指标的合理边界：个人记录用途的宽松产品规则，UI 录入/载入校验/备份解析三处共用
+// （120% 体脂这类数学上不可能的值必须在输入时就拦住，否则派生的瘦体重会变负数）
+export const METRIC_LIMITS: Record<MetricType, { min: number; max: number; unit: string }> = {
+  weight: { min: 20, max: 400, unit: 'kg' },
+  bodyFat: { min: 2, max: 70, unit: '%' },
+  waist: { min: 30, max: 200, unit: 'cm' },
+  chest: { min: 40, max: 200, unit: 'cm' },
+  hips: { min: 40, max: 200, unit: 'cm' },
+  upperArm: { min: 10, max: 80, unit: 'cm' },
+  thigh: { min: 20, max: 120, unit: 'cm' },
+}
+
+export function isValidMetricValue(type: MetricType, value: number): boolean {
+  const lim = METRIC_LIMITS[type]
+  return lim != null && Number.isFinite(value) && value >= lim.min && value <= lim.max
+}
 
 // BMI = 体重kg / 身高m²
 export function bmi(weightKg: number, heightCm: number): number {
@@ -55,7 +73,8 @@ export function movingAverage(
   })
 }
 
-// 近 n 周体重变化速度：首条（n 周前至今最早一条）与最新一条的差 / 周数
+// 近 n 周体重变化速度：起点取窗口边界（n 周前）处最近的一条，而非全历史最早一条；
+// 窗口内没有记录时退回最新之前的最早一条（此时 weeks 反映实际跨度，如实显示）
 export function weightVelocity(
   metrics: { date: string; type: string; value: number }[],
   now = new Date(),
@@ -68,7 +87,8 @@ export function weightVelocity(
   const latest = weights[weights.length - 1]
   const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - weeks * 7)
   const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`
-  const start = weights.find((m) => m.date <= latest.date && m.date <= cutoffKey) ?? weights.find((m) => m.date < latest.date)
+  const inWindow = weights.filter((m) => m.date <= cutoffKey)
+  const start = inWindow.length > 0 ? inWindow[inWindow.length - 1] : weights.find((m) => m.date < latest.date)
   if (!start || start.date === latest.date) return null
   const days = Math.max(1, Math.round((new Date(latest.date).getTime() - new Date(start.date).getTime()) / 86400000))
   const wk = days / 7

@@ -397,197 +397,6 @@ export function DietTab({
 
       {view === 'log' && (
         <>
-      {/* 热量目标设置（无身体资料时只提示，不展示无效控件） */}
-      {hasProfile ? (
-      <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
-        <button onClick={() => setShowGoalSetup(!showGoalSetup)} className="w-full flex items-center justify-between text-[13px]">
-          <span className="font-display italic text-muted">热量目标 · {goalLabel}{goal !== 'maintain' ? ` ${settings.dietPace ?? 0.5}kg/周` : ''}</span>
-          <span className="text-clay">{showGoalSetup ? '收起' : `${targetInfo!.target} kcal/天${isTrainingDay ? `（含训练日 +${TRAINING_DAY_BONUS}）` : ''}`}</span>
-        </button>
-        {showGoalSetup && (
-          <div className="mt-3 space-y-3">
-            <div>
-              <p className="text-[11px] text-muted mb-1">目标</p>
-              <div className="flex gap-1.5">
-                {([['lose', '减脂'], ['maintain', '维持'], ['gain', '增肌']] as [DietGoal, string][]).map(([v, l]) => (
-                  <button key={v} onClick={() => onUpdateSettings({ dietGoal: v })} className={`flex-1 py-1.5 rounded-full text-[12px] border ${goal === v ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{l}</button>
-                ))}
-              </div>
-            </div>
-            {goal !== 'maintain' && (
-              <div>
-                <p className="text-[11px] text-muted mb-1">速度</p>
-                <div className="flex gap-1.5">
-                  {paceOptions.map((p) => (
-                    <button key={p.value} onClick={() => onUpdateSettings({ dietPace: p.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietPace ?? 0.5) === p.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{p.label}</button>
-                  ))}
-                </div>
-                {goal === 'gain' && (
-                  <p className={`text-[10px] mt-1 ${(settings.dietPace ?? 0.5) > 0.5 ? 'text-clay' : 'text-muted-weak'}`}>
-                    {(settings.dietPace ?? 0.5) > 0.5 ? '当前 0.75kg/周 盈余偏大，建议选 0.5 或 0.25' : '增肌宜慢，速度过快多长脂肪'}
-                  </p>
-                )}
-              </div>
-            )}
-            <div>
-              <p className="text-[11px] text-muted mb-1">日常活动量</p>
-              <div className="flex gap-1.5">
-                {ACTIVITY_LEVELS.map((a) => (
-                  <button key={a.value} onClick={() => onUpdateSettings({ dietActivity: a.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietActivity ?? 1.375) === a.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{a.label}</button>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-weak mt-1">{ACTIVITY_LEVELS.find((a) => a.value === (settings.dietActivity ?? 1.375))?.hint}；训练日自动 +200 kcal</p>
-            </div>
-          </div>
-        )}
-      </div>
-      ) : (
-        <div className="mt-4 rounded-2xl bg-surface border border-line p-4 text-center">
-          <p className="text-[12px] text-muted">在「身体」页填写体重、身高、性别和出生年后，这里会生成每日热量目标</p>
-        </div>
-      )}
-
-      {/* 当日热量 vs 目标 */}
-      {targetInfo ? (
-        <div className="mt-3 rounded-2xl bg-surface border border-line p-5 text-center">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[11px] text-muted text-left">已吃</p>
-              <p className="font-display text-[28px] leading-none text-ink tabular-nums">{total}<span className="text-[12px] text-muted"> kcal</span></p>
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] text-muted">{total <= targetInfo.target ? '还能吃' : '已超出'}</p>
-              <p className={`font-display text-[40px] leading-none tabular-nums ${total <= targetInfo.target ? 'text-clay' : 'text-muted'}`}>
-                {Math.abs(targetInfo.target - total)}<span className="text-[14px] text-muted"> kcal</span>
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 h-1.5 rounded-full bg-line overflow-hidden">
-            <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/40' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
-          </div>
-          <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
-          {burn > 0 && (
-            <p className="mt-1 text-[12px] text-muted tabular-nums">
-              运动消耗 {burn} kcal · {total - burn >= 0 ? `净摄入 ${total - burn} kcal` : `缺口 ${burn - total} kcal`}
-            </p>
-          )}
-          <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
-          {targetInfo.clamped && goal === 'lose' && (
-            <p className="mt-1 text-[11px] text-clay">目标已按安全下限调整（{settings.sex === 'male' ? 1500 : 1200} kcal），建议放慢速度</p>
-          )}
-        </div>
-      ) : (
-        <div className="mt-3 rounded-2xl bg-surface border border-line p-6 text-center">
-          <p className="font-display text-[15px] text-muted">{isToday ? '今天已吃' : '当天已吃'}</p>
-          <p className="font-display text-[40px] leading-none mt-1 text-clay tabular-nums">
-            {total}<span className="text-[20px] text-muted"> kcal</span>
-          </p>
-          <p className="mt-2 text-[11px] text-muted">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
-          <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
-        </div>
-      )}
-      {weekTip && <p className="mt-2 px-1 text-[12px] text-ink/70">📊 {weekTip}</p>}
-
-      {/* 喝水：打卡 stepper + 目标调整（近 7 天柱图已移除，记录页只留核心动作） */}
-      <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[15px] text-ink">💧 喝水</p>
-          <div className="flex items-center gap-2">
-            <button onClick={() => onChangeWater(date, -1)} disabled={todayGlasses === 0} aria-label="减少一杯" className="h-7 w-7 -m-2 p-2 box-content rounded-full border border-line text-muted enabled:hover:text-clay disabled:opacity-30">－</button>
-            <p className="font-display text-[20px] text-clay w-16 text-center tabular-nums">{todayGlasses}<span className="text-[12px] text-muted">/{settings.waterGoal} 杯</span></p>
-            <button onClick={() => onChangeWater(date, 1)} aria-label="增加一杯" className="h-7 w-7 -m-2 p-2 box-content rounded-full bg-clay text-white text-lg leading-none">＋</button>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-weak">
-          <span>每日目标</span>
-          <span className="flex items-center gap-1.5">
-            <button
-              onClick={() => onUpdateSettings({ waterGoal: Math.max(1, settings.waterGoal - 1) })}
-              aria-label="目标减一杯"
-              className="h-6 w-6 rounded-full border border-line leading-none hover:text-clay"
-            >－</button>
-            <span className="text-ink w-9 text-center tabular-nums">{settings.waterGoal} 杯</span>
-            <button
-              onClick={() => onUpdateSettings({ waterGoal: Math.min(30, settings.waterGoal + 1) })}
-              aria-label="目标加一杯"
-              className="h-6 w-6 rounded-full border border-line leading-none hover:text-clay"
-            >＋</button>
-          </span>
-        </div>
-      </div>
-
-      {/* 运动消耗：户外慢跑/步行等（健身房力量训练不计——估算误差太大） */}
-      <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
-        <p className="text-[15px] text-ink">🏃 运动消耗</p>
-        {(() => {
-          const dayActs = activities.filter((a) => a.date === date)
-          return dayActs.length > 0 && (
-            <ul className="mt-2 space-y-1">
-              {dayActs.map((a) => (
-                <li key={a.id} className="flex items-center justify-between text-[14px]">
-                  <span className="text-ink">{({ run: '慢跑', walk: '步行', brisk: '快走', other: '其他' } as Record<ActivityKind, string>)[a.kind]} {a.minutes} 分钟</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-muted tabular-nums">{a.kcal} kcal</span>
-                    <button onClick={() => onDeleteActivity(a.id)} aria-label="删除这条运动记录" className="-m-3 p-3 leading-none text-muted/50 hover:text-clay text-sm">✕</button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )
-        })()}
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {([['run', '慢跑'], ['walk', '步行'], ['brisk', '快走'], ['other', '其他']] as [ActivityKind, string][]).map(([k, l]) => (
-            <button
-              key={k}
-              onClick={() => setActKind(k)}
-              className={`px-2.5 py-1 rounded-full border text-[12px] transition ${actKind === k ? 'bg-clay text-white border-clay' : 'border-line text-muted hover:text-clay'}`}
-            >{l}</button>
-          ))}
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            value={actMinutes}
-            onChange={(e) => setActMinutes(e.target.value)}
-            inputMode="numeric"
-            placeholder="分钟"
-            className="w-20 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
-          />
-          {(() => {
-            // 同一套有效性计算同时驱动占位符与保存按钮（单点真相）
-            const mins = Number(actMinutes)
-            const minutesOk = Number.isFinite(mins) && mins >= 1 && mins <= 600
-            const est = actKind !== 'other' && latestWeight && minutesOk ? estimateKcal(actKind, mins, latestWeight) : null
-            const k = actKcal ? Math.round(Number(actKcal)) : (est ?? 0)
-            const kcalOk = Number.isFinite(k) && k > 0 && k <= 9000
-            const canSave = minutesOk && kcalOk
-            return (
-              <>
-                <input
-                  value={actKcal}
-                  onChange={(e) => setActKcal(e.target.value)}
-                  inputMode="numeric"
-                  placeholder={est != null ? `≈${est} kcal` : 'kcal'}
-                  className="w-24 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
-                />
-                <button
-                  onClick={() => {
-                    if (!canSave) return
-                    onAddActivity({ id: uid(), date, kind: actKind, minutes: mins, kcal: k, createdAt: Date.now() })
-                    setActMinutes('')
-                    setActKcal('')
-                  }}
-                  disabled={!canSave}
-                  className="shrink-0 w-9 h-9 rounded-xl bg-clay text-white text-[18px] leading-none transition enabled:hover:bg-clay/90 enabled:active:scale-95 disabled:bg-line disabled:text-muted-weak"
-                >＋</button>
-              </>
-            )
-          })()}
-        </div>
-        <p className="mt-1 text-[10px] text-muted-weak">
-          慢跑≈8 MET · 快走≈5 · 步行≈3.5；{latestWeight ? '按最近体重估算，可手动改' : '在身体页填体重后自动估算'}；「其他」需手填 kcal；健身房力量训练不计入此处
-        </p>
-      </div>
-
       {meals.length === 0 && (
         <p className="mt-3 text-center text-[11px] text-muted-weak">输入食物名 → 选建议 → 填克数，自动算热量；不知道吃什么可切到「计划」按菜单记录</p>
       )}
@@ -720,6 +529,198 @@ export function DietTab({
           )
         })}
       </div>
+
+      {/* 当日热量 vs 目标 */}
+      {targetInfo ? (
+        <div className="mt-3 rounded-2xl bg-surface border border-line p-5 text-center">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[11px] text-muted text-left">已吃</p>
+              <p className="font-display text-[28px] leading-none text-ink tabular-nums">{total}<span className="text-[12px] text-muted"> kcal</span></p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] text-muted">{total <= targetInfo.target ? '还能吃' : '已超出'}</p>
+              <p className={`font-display text-[40px] leading-none tabular-nums ${total <= targetInfo.target ? 'text-clay' : 'text-muted'}`}>
+                {Math.abs(targetInfo.target - total)}<span className="text-[14px] text-muted"> kcal</span>
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 h-1.5 rounded-full bg-line overflow-hidden">
+            <div className={`h-full rounded-full ${total > targetInfo.target ? 'bg-ink/40' : 'bg-clay'}`} style={{ width: `${Math.min(100, Math.round((total / targetInfo.target) * 100))}%` }} />
+          </div>
+          <p className="mt-2 text-[12px] text-muted leading-relaxed">{advice}</p>
+          {burn > 0 && (
+            <p className="mt-1 text-[12px] text-muted tabular-nums">
+              运动消耗 {burn} kcal · {total - burn >= 0 ? `净摄入 ${total - burn} kcal` : `缺口 ${burn - total} kcal`}
+            </p>
+          )}
+          <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
+          {targetInfo.clamped && goal === 'lose' && (
+            <p className="mt-1 text-[11px] text-clay">目标已按安全下限调整（{settings.sex === 'male' ? 1500 : 1200} kcal），建议放慢速度</p>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3 rounded-2xl bg-surface border border-line p-6 text-center">
+          <p className="font-display text-[15px] text-muted">{isToday ? '今天已吃' : '当天已吃'}</p>
+          <p className="font-display text-[40px] leading-none mt-1 text-clay tabular-nums">
+            {total}<span className="text-[20px] text-muted"> kcal</span>
+          </p>
+          <p className="mt-2 text-[11px] text-muted">在「身体」页填写体重、身高、性别和出生年后可生成热量目标</p>
+          <MacroBars today={macrosToday} target={macroTargetsInfo} missed={macrosMissed} />
+        </div>
+      )}
+      {weekTip && <p className="mt-2 px-1 text-[12px] text-ink/70">📊 {weekTip}</p>}
+
+      {/* 喝水：记录 stepper + 目标调整（近 7 天柱图已移除，记录页只留核心动作） */}
+      <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[15px] text-ink">💧 喝水</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => onChangeWater(date, -1)} disabled={todayGlasses === 0} aria-label="减少一杯" className="h-7 w-7 -m-2 p-2 box-content rounded-full border border-line text-muted enabled:hover:text-clay disabled:opacity-30">－</button>
+            <p className="font-display text-[20px] text-clay w-16 text-center tabular-nums">{todayGlasses}<span className="text-[12px] text-muted">/{settings.waterGoal} 杯</span></p>
+            <button onClick={() => onChangeWater(date, 1)} aria-label="增加一杯" className="h-7 w-7 -m-2 p-2 box-content rounded-full bg-clay text-white text-lg leading-none">＋</button>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-weak">
+          <span>每日目标</span>
+          <span className="flex items-center gap-1.5">
+            <button
+              onClick={() => onUpdateSettings({ waterGoal: Math.max(1, settings.waterGoal - 1) })}
+              aria-label="目标减一杯"
+              className="h-6 w-6 rounded-full border border-line leading-none hover:text-clay"
+            >－</button>
+            <span className="text-ink w-9 text-center tabular-nums">{settings.waterGoal} 杯</span>
+            <button
+              onClick={() => onUpdateSettings({ waterGoal: Math.min(30, settings.waterGoal + 1) })}
+              aria-label="目标加一杯"
+              className="h-6 w-6 rounded-full border border-line leading-none hover:text-clay"
+            >＋</button>
+          </span>
+        </div>
+      </div>
+
+      {/* 运动消耗：户外慢跑/步行等（健身房力量训练不计——估算误差太大） */}
+      <div className="mt-3 rounded-2xl bg-surface border border-line p-4">
+        <p className="text-[15px] text-ink">🏃 运动消耗</p>
+        {(() => {
+          const dayActs = activities.filter((a) => a.date === date)
+          return dayActs.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {dayActs.map((a) => (
+                <li key={a.id} className="flex items-center justify-between text-[14px]">
+                  <span className="text-ink">{({ run: '慢跑', walk: '步行', brisk: '快走', other: '其他' } as Record<ActivityKind, string>)[a.kind]} {a.minutes} 分钟</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-muted tabular-nums">{a.kcal} kcal</span>
+                    <button onClick={() => onDeleteActivity(a.id)} aria-label="删除这条运动记录" className="-m-3 p-3 leading-none text-muted/50 hover:text-clay text-sm">✕</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )
+        })()}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {([['run', '慢跑'], ['walk', '步行'], ['brisk', '快走'], ['other', '其他']] as [ActivityKind, string][]).map(([k, l]) => (
+            <button
+              key={k}
+              onClick={() => setActKind(k)}
+              className={`px-2.5 py-1 rounded-full border text-[12px] transition ${actKind === k ? 'bg-clay text-white border-clay' : 'border-line text-muted hover:text-clay'}`}
+            >{l}</button>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            value={actMinutes}
+            onChange={(e) => setActMinutes(e.target.value)}
+            inputMode="numeric"
+            placeholder="分钟"
+            className="w-20 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+          />
+          {(() => {
+            // 同一套有效性计算同时驱动占位符与保存按钮（单点真相）
+            const mins = Number(actMinutes)
+            const minutesOk = Number.isFinite(mins) && mins >= 1 && mins <= 600
+            const est = actKind !== 'other' && latestWeight && minutesOk ? estimateKcal(actKind, mins, latestWeight) : null
+            const k = actKcal ? Math.round(Number(actKcal)) : (est ?? 0)
+            const kcalOk = Number.isFinite(k) && k > 0 && k <= 9000
+            const canSave = minutesOk && kcalOk
+            return (
+              <>
+                <input
+                  value={actKcal}
+                  onChange={(e) => setActKcal(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={est != null ? `≈${est} kcal` : 'kcal'}
+                  className="w-24 px-3 py-2 rounded-xl border border-line bg-paper text-base text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
+                />
+                <button
+                  onClick={() => {
+                    if (!canSave) return
+                    onAddActivity({ id: uid(), date, kind: actKind, minutes: mins, kcal: k, createdAt: Date.now() })
+                    setActMinutes('')
+                    setActKcal('')
+                  }}
+                  disabled={!canSave}
+                  aria-label="添加这条运动记录"
+                  className="shrink-0 w-9 h-9 rounded-xl bg-clay text-white text-[18px] leading-none transition enabled:hover:bg-clay/90 enabled:active:scale-95 disabled:bg-line disabled:text-muted-weak"
+                >＋</button>
+              </>
+            )
+          })()}
+        </div>
+        <p className="mt-1 text-[10px] text-muted-weak">
+          慢跑≈8 MET · 快走≈5 · 步行≈3.5；{latestWeight ? '按最近体重估算，可手动改' : '在身体页填体重后自动估算'}；「其他」需手填 kcal；健身房力量训练不计入此处
+        </p>
+      </div>
+
+      {/* 热量目标设置（无身体资料时只提示，不展示无效控件） */}
+      {hasProfile ? (
+      <div className="mt-4 rounded-2xl bg-surface border border-line p-4">
+        <button onClick={() => setShowGoalSetup(!showGoalSetup)} className="w-full flex items-center justify-between text-[13px]">
+          <span className="font-display italic text-muted">热量目标 · {goalLabel}{goal !== 'maintain' ? ` ${settings.dietPace ?? 0.5}kg/周` : ''}</span>
+          <span className="text-clay">{showGoalSetup ? '收起' : `${targetInfo!.target} kcal/天${isTrainingDay ? `（含训练日 +${TRAINING_DAY_BONUS}）` : ''}`}</span>
+        </button>
+        {showGoalSetup && (
+          <div className="mt-3 space-y-3">
+            <div>
+              <p className="text-[11px] text-muted mb-1">目标</p>
+              <div className="flex gap-1.5">
+                {([['lose', '减脂'], ['maintain', '维持'], ['gain', '增肌']] as [DietGoal, string][]).map(([v, l]) => (
+                  <button key={v} onClick={() => onUpdateSettings({ dietGoal: v })} className={`flex-1 py-1.5 rounded-full text-[12px] border ${goal === v ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {goal !== 'maintain' && (
+              <div>
+                <p className="text-[11px] text-muted mb-1">速度</p>
+                <div className="flex gap-1.5">
+                  {paceOptions.map((p) => (
+                    <button key={p.value} onClick={() => onUpdateSettings({ dietPace: p.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietPace ?? 0.5) === p.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{p.label}</button>
+                  ))}
+                </div>
+                {goal === 'gain' && (
+                  <p className={`text-[10px] mt-1 ${(settings.dietPace ?? 0.5) > 0.5 ? 'text-clay' : 'text-muted-weak'}`}>
+                    {(settings.dietPace ?? 0.5) > 0.5 ? '当前 0.75kg/周 盈余偏大，建议选 0.5 或 0.25' : '增肌宜慢，速度过快多长脂肪'}
+                  </p>
+                )}
+              </div>
+            )}
+            <div>
+              <p className="text-[11px] text-muted mb-1">日常活动量</p>
+              <div className="flex gap-1.5">
+                {ACTIVITY_LEVELS.map((a) => (
+                  <button key={a.value} onClick={() => onUpdateSettings({ dietActivity: a.value })} className={`flex-1 py-1.5 rounded-full text-[11px] border ${(settings.dietActivity ?? 1.375) === a.value ? 'bg-clay text-white border-clay' : 'border-line text-muted'}`}>{a.label}</button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-weak mt-1">{ACTIVITY_LEVELS.find((a) => a.value === (settings.dietActivity ?? 1.375))?.hint}；训练日自动 +200 kcal</p>
+            </div>
+          </div>
+        )}
+      </div>
+      ) : (
+        <div className="mt-4 rounded-2xl bg-surface border border-line p-4 text-center">
+          <p className="text-[12px] text-muted">在「身体」页填写体重、身高、性别和出生年后，这里会生成每日热量目标</p>
+        </div>
+      )}
 
       {/* 近 7 天热量（点柱子跳到那天查看/补记） */}
       <div className="mt-5 rounded-2xl bg-surface border border-line p-4">

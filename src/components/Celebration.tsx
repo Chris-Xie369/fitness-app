@@ -15,7 +15,7 @@ export function Celebration({ queue, onClose }: { queue: CelebrationItem[]; onCl
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-ink/40 px-10">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-ink/40 px-10" role="dialog" aria-modal="true" aria-label="成就庆祝">
       {/* key={String(idx) + "-" + a.title}：翻页时整卡重挂载，pop-in 动画每枚都重播 */}
       <div key={String(idx) + "-" + a.title} className="w-full max-w-[300px] rounded-3xl bg-surface border border-line p-7 text-center shadow-xl">
         <p className="font-display text-[13px] italic text-clay">成就解锁</p>

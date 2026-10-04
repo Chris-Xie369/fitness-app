@@ -1,13 +1,12 @@
 import type { Workout } from '../types'
 
-// 把日期转成"天数整数"（按自然天，方便比较）
+// 把日期转成"天数整数"：本地日期分量按 UTC 编码（每天恒等于 86400000ms，DST 的 23/25 小时日不会算错）
 function toDayStamp(date: Date): number {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  return Math.floor(d.getTime() / 86400000)
+  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000)
 }
 
-// 计算连续打卡天数：今天练了就从今天起，否则若昨天练了从昨天起，再往前数连续天数
-export function computeStreak(workouts: Workout[]): number {
+// 计算连续打卡天数：今天练了就从今天起，否则若昨天练了从昨天起，再往前数连续天数（now 可注入便于测试）
+export function computeStreak(workouts: Workout[], now = new Date()): number {
   if (workouts.length === 0) return 0
   const days = new Set(
     workouts.map((w) => {
@@ -15,7 +14,7 @@ export function computeStreak(workouts: Workout[]): number {
       return toDayStamp(new Date(y, m - 1, d))
     })
   )
-  const today = toDayStamp(new Date())
+  const today = toDayStamp(now)
   const yesterday = today - 1
 
   let cursor = days.has(today) ? today : days.has(yesterday) ? yesterday : -1

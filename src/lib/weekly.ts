@@ -78,6 +78,8 @@ export function weeklyInsight(r: WeeklyReport): string {
   const l = r.lastWeek
   if (t.trainDays === 0 && t.kcalDays === 0) return '这周还没开始记录，先从一次运动或一次饮食开始吧'
   if (t.trainDays === 0) return '这周还没进健身房，但已经在记录，继续保持 💪'
+  // 只打卡未填明细：0 组对比无意义，不跟上周比；肯定记录行为，指路补明细（不反复催）
+  if (t.totalSets === 0) return `这周打卡了 ${t.trainDays} 天，明细还没补；想看组数和容量趋势，随时可以补记动作`
   if (l.trainDays === 0) return `这周已练 ${t.trainDays} 天，开了个好头，继续保持！`
   const parts: string[] = []
   const dd = t.trainDays - l.trainDays

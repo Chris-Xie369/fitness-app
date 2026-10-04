@@ -75,7 +75,7 @@ export function HistoryTab({
   const [hintTimes, setHintTimes] = useState(loadBackupHintTimes)
   const [exporting, setExporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const hint = backupHintState({ now: Date.now(), ...hintTimes, workoutCount: workouts.length })
+  const hint = backupHintState({ now: Date.now(), ...hintTimes, recordCount: workouts.length + meals.length + metrics.length + activities.length })
 
   useEffect(() => {
     if (!confirmId) return

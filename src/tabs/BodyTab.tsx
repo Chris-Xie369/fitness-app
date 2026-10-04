@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AppSettings, MetricEntry, MetricType } from '../types'
-import { ageFromBirthYear, bmi, bmiCategory, bmrMifflin, fatMass, leanMass, movingAverage, weightVelocity } from '../lib/body'
+import { METRIC_LIMITS, ageFromBirthYear, bmi, bmiCategory, bmrMifflin, fatMass, isValidMetricValue, leanMass, movingAverage, weightVelocity } from '../lib/body'
 import { todayStr } from '../lib/streak'
 import { ProgressPhotos } from '../components/ProgressPhotos'
 
@@ -36,6 +36,13 @@ export function BodyTab({
   const today = todayStr()
   const [type, setType] = useState<MetricType>('weight')
   const [value, setValue] = useState('')
+  // 补记支持：默认今天，可切到过去日（不允许未来）；同类型同日期保存即更新该日记录
+  const [date, setDate] = useState(today)
+  const [inputError, setInputError] = useState<string | null>(null)
+  // 误删保护：刚删的一条短暂可撤销（撤销=按 类型+日期+数值 重新写入）
+  const [lastDeleted, setLastDeleted] = useState<{ type: MetricType; date: string; value: number } | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
   const [editingProfile, setEditingProfile] = useState(false)
   const [profileDraft, setProfileDraft] = useState({
     heightCm: String(settings.heightCm ?? ''),
@@ -67,16 +74,65 @@ export function BodyTab({
     return series.map((s) => ({ x: s.x, value: s.value }))
   }, [series, type])
 
-  const todayEntry = series.find((e) => e.date === today)
+  const dateEntry = series.find((e) => e.date === date)
   const latest = series[series.length - 1]
   const prev = series[series.length - 2]
 
+  // 日期分量推算（禁毫秒乘除，DST 安全）；不允许选到未来
+  function shiftDate(days: number) {
+    const [y, m, d] = date.split('-').map(Number)
+    const next = new Date(y, m - 1, d + days)
+    const key = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+    if (key <= today) setDate(key)
+  }
+
   function handleSave() {
-    const kg = Number(value)
-    if (!value || !Number.isFinite(kg) || kg <= 0 || kg >= 1000) return
-    onSaveMetric(type, today, kg)
+    const num = Number(value)
+    if (!value || !Number.isFinite(num)) return
+    if (!isValidMetricValue(type, num)) {
+      const lim = METRIC_LIMITS[type]
+      setInputError(`${meta.label}应在 ${lim.min}-${lim.max} ${lim.unit} 之间，这个数值记不进来，请核对`)
+      return
+    }
+    setInputError(null)
+    onSaveMetric(type, date, num)
+    // 同类型同日期重新记录时，撤销条已过时（撤销会覆盖刚记的新值），立即作废
+    if (lastDeleted && lastDeleted.type === type && lastDeleted.date === date) setLastDeleted(null)
     setValue('')
   }
+
+  function startEdit(e: MetricEntry) {
+    setEditingId(e.id)
+    setEditValue(String(e.value))
+    setInputError(null)
+  }
+
+  function saveEdit() {
+    const num = Number(editValue)
+    if (!editValue || !Number.isFinite(num)) return
+    if (!isValidMetricValue(type, num)) {
+      const lim = METRIC_LIMITS[type]
+      setInputError(`${meta.label}应在 ${lim.min}-${lim.max} ${lim.unit} 之间，请修改后再保存`)
+      return
+    }
+    const entry = series.find((x) => x.id === editingId)
+    if (entry) onSaveMetric(type, entry.date, num)
+    setEditingId(null)
+    setInputError(null)
+  }
+
+  function handleDelete(id: string) {
+    const entry = series.find((x) => x.id === id)
+    if (!entry) return
+    setLastDeleted({ type, date: entry.date, value: entry.value })
+    onDeleteMetric(id)
+  }
+
+  useEffect(() => {
+    if (!lastDeleted) return
+    const t = setTimeout(() => setLastDeleted(null), 4000)
+    return () => clearTimeout(t)
+  }, [lastDeleted])
 
   // 派生指标
   const latestOf = (t: MetricType) => metrics.filter((m) => m.type === t).sort((a, b) => b.date.localeCompare(a.date))[0]
@@ -102,9 +158,10 @@ export function BodyTab({
   function saveProfile() {
     const h = Number(profileDraft.heightCm)
     const y = Number(profileDraft.birthYear)
+    const thisYear = new Date().getFullYear()
     onUpdateSettings({
-      heightCm: h > 0 ? h : undefined,
-      birthYear: y >= 1900 ? y : undefined,
+      heightCm: h >= 50 && h <= 275 ? h : undefined,
+      birthYear: y >= 1900 && y <= thisYear ? y : undefined,
       sex: profileDraft.sex,
     })
     setEditingProfile(false)
@@ -119,7 +176,7 @@ export function BodyTab({
         {METRICS.map((m) => (
           <button
             key={m.type}
-            onClick={() => { setType(m.type); setValue('') }}
+            onClick={() => { setType(m.type); setValue(''); setInputError(null); setEditingId(null) }}
             className={`px-4 py-1.5 rounded-full text-[13px] border transition ${type === m.type ? 'bg-clay text-white border-clay' : 'border-line text-muted hover:text-clay'}`}
           >
             {m.label}
@@ -128,14 +185,22 @@ export function BodyTab({
       </div>
       <p className="mt-2 text-center text-[11px] text-muted">{meta.hint}</p>
 
+      {/* 日期选择：默认今天，可回过去补记（训练/饮食同款语义：同类型同日期=更新） */}
+      <div className="mt-4 flex items-center justify-center gap-3 text-[13px]">
+        <button onClick={() => shiftDate(-1)} aria-label="前一天" className="-m-2 p-2 text-muted hover:text-clay">‹</button>
+        <span className={date === today ? 'text-clay font-medium' : 'text-ink'}>{date === today ? '今天' : date}</span>
+        <button onClick={() => shiftDate(1)} disabled={date >= today} aria-label="后一天" className="-m-2 p-2 text-muted hover:text-clay disabled:opacity-30">›</button>
+      </div>
+
       {/* 录入 */}
-      <div className="mt-5 flex gap-2">
+      <div className="mt-3 flex gap-2">
         <input
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => { setValue(e.target.value); setInputError(null) }}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           inputMode="decimal"
-          placeholder={`今天的${meta.label}（${meta.placeholder}）`}
+          placeholder={`${date === today ? '今天的' : `${date} 的`}${meta.label}（${meta.placeholder}）`}
+          aria-label={`${date === today ? '今天' : date}的${meta.label}`}
           className="flex-1 px-4 py-3 rounded-xl border border-line bg-paper text-ink placeholder:text-muted-weak focus:outline-none focus:border-clay focus:ring-2 focus:ring-clay/20"
         />
         <button
@@ -143,9 +208,24 @@ export function BodyTab({
           disabled={!value}
           className="px-5 py-3 rounded-xl bg-clay text-white disabled:opacity-30 hover:bg-clay/90 active:scale-95 transition"
         >
-          {todayEntry ? '更新' : '记录'}
+          {dateEntry ? '更新' : '记录'}
         </button>
       </div>
+      {inputError && <p className="mt-2 text-[12px] text-clay">{inputError}</p>}
+      {date !== today && (
+        <p className="mt-2 text-center text-[11px] text-muted">在补记 {date} 的{meta.label}；同一天再记会更新那条</p>
+      )}
+
+      {/* 误删撤销 */}
+      {lastDeleted && (() => {
+        const m = METRICS.find((x) => x.type === lastDeleted.type)!
+        return (
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-surface border border-line px-4 py-2 text-[12px] text-muted">
+            <span>已删除 {m.label} {lastDeleted.value} {m.unit}（{lastDeleted.date}）</span>
+            <button onClick={() => { onSaveMetric(lastDeleted.type, lastDeleted.date, lastDeleted.value); setLastDeleted(null) }} className="text-clay hover:underline">撤销</button>
+          </div>
+        )
+      })()}
 
       {/* 当前值 */}
       {!latest && (
@@ -272,10 +352,26 @@ export function BodyTab({
             {[...series].reverse().map((e) => (
               <li key={e.id} className="flex items-center justify-between rounded-xl bg-surface border border-line px-4 py-3">
                 <span className="text-[14px] text-ink">{e.date}</span>
-                <span className="flex items-center gap-3">
-                  <span className="text-[14px] text-muted">{e.value} {meta.unit}</span>
-                  <button onClick={() => onDeleteMetric(e.id)} className="text-muted/50 hover:text-clay text-sm">✕</button>
-                </span>
+                {editingId === e.id ? (
+                  <span className="flex items-center gap-2">
+                    <input
+                      value={editValue}
+                      onChange={(ev) => { setEditValue(ev.target.value); setInputError(null) }}
+                      onKeyDown={(ev) => ev.key === 'Enter' && saveEdit()}
+                      inputMode="decimal"
+                      aria-label={`修改 ${e.date} 的${meta.label}`}
+                      className="w-20 px-2 py-1 rounded-lg border border-line bg-paper text-base text-ink focus:outline-none focus:border-clay"
+                    />
+                    <button onClick={saveEdit} className="text-[12px] text-clay">保存</button>
+                    <button onClick={() => setEditingId(null)} className="text-[12px] text-muted">取消</button>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-3">
+                    <span className="text-[14px] text-muted">{e.value} {meta.unit}</span>
+                    <button onClick={() => startEdit(e)} aria-label={`修改 ${e.date} 的${meta.label}`} className="text-[12px] text-muted hover:text-clay">改</button>
+                    <button onClick={() => handleDelete(e.id)} aria-label={`删除 ${e.date} 的${meta.label}`} className="-m-2 p-2 text-muted/50 hover:text-clay text-sm">✕</button>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

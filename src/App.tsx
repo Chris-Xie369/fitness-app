@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { PhoneFrame } from './components/PhoneFrame'
 import { BodyIcon, DietIcon, RecordIcon, StatsIcon, TodayIcon } from './components/icons'
 import { TodayTab } from './tabs/TodayTab'
-import { RecordTab } from './tabs/RecordTab'
-import { DietTab } from './tabs/DietTab'
-import { BodyTab } from './tabs/BodyTab'
-import { StatsTab } from './tabs/StatsTab'
-import { HistoryTab } from './tabs/HistoryTab'
+// 首页之外按需加载：初始包不含 recharts 等大依赖，首访该页时才拉取（与 mountedTabs 常驻机制配合）
+const RecordTab = lazy(() => import('./tabs/RecordTab').then((m) => ({ default: m.RecordTab })))
+const DietTab = lazy(() => import('./tabs/DietTab').then((m) => ({ default: m.DietTab })))
+const BodyTab = lazy(() => import('./tabs/BodyTab').then((m) => ({ default: m.BodyTab })))
+const StatsTab = lazy(() => import('./tabs/StatsTab').then((m) => ({ default: m.StatsTab })))
+const HistoryTab = lazy(() => import('./tabs/HistoryTab').then((m) => ({ default: m.HistoryTab })))
 import { Celebration } from './components/Celebration'
 import { newlyEarned, newlyEarnedMeals } from './lib/achievements'
 import { newlySetPRs, weekGoalJustReached, weekKey, type CelebrationItem } from './lib/feedback'
@@ -65,7 +66,7 @@ export default function App() {
   const [loadNotice, setLoadNotice] = useState<string | null>(null)
   useEffect(() => {
     const warnings = takeLoadWarnings()
-    if (warnings.length > 0) setLoadNotice(`上次保存的部分数据已损坏，原始内容已自动留底在本机，本次加载了可用部分：${warnings.join('、')}`)
+    if (warnings.length > 0) setLoadNotice(`上次有部分数据未通过校验，原始内容已自动留底在本机，本次加载了可用部分：${warnings.join('、')}`)
   }, [])
 
   // 记录开始：今天第一次填表时打点，用于计算训练时长
@@ -259,41 +260,51 @@ export default function App() {
           </div>
           {mountedTabs.has('record') && (
             <div hidden={tab !== 'record'}>
-              <RecordTab
-                onSave={addWorkout}
-                onBeginWorkout={beginWorkout}
-                workouts={workouts}
-                routines={routines}
-                onUpsertRoutine={handleUpsertRoutine}
-                onDeleteRoutine={handleDeleteRoutine}
-                restTimer={restTimer}
-              />
+              <Suspense fallback={<p className="py-16 text-center text-[13px] text-muted">加载中…</p>}>
+                <RecordTab
+                  onSave={addWorkout}
+                  onBeginWorkout={beginWorkout}
+                  workouts={workouts}
+                  routines={routines}
+                  onUpsertRoutine={handleUpsertRoutine}
+                  onDeleteRoutine={handleDeleteRoutine}
+                  restTimer={restTimer}
+                />
+              </Suspense>
             </div>
           )}
           {mountedTabs.has('diet') && (
             <div hidden={tab !== 'diet'}>
-              <DietTab meals={meals} water={water} workouts={workouts} metrics={metrics} settings={settings} activities={activities} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onAddActivity={addActivity} onDeleteActivity={deleteActivity} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />
+              <Suspense fallback={<p className="py-16 text-center text-[13px] text-muted">加载中…</p>}>
+                <DietTab meals={meals} water={water} workouts={workouts} metrics={metrics} settings={settings} activities={activities} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onAddActivity={addActivity} onDeleteActivity={deleteActivity} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />
+              </Suspense>
             </div>
           )}
           {mountedTabs.has('body') && (
             <div hidden={tab !== 'body'}>
-              <BodyTab
-                metrics={metrics}
-                settings={settings}
-                onSaveMetric={saveMetric}
-                onDeleteMetric={deleteMetric}
-                onUpdateSettings={updateSettings}
-              />
+              <Suspense fallback={<p className="py-16 text-center text-[13px] text-muted">加载中…</p>}>
+                <BodyTab
+                  metrics={metrics}
+                  settings={settings}
+                  onSaveMetric={saveMetric}
+                  onDeleteMetric={deleteMetric}
+                  onUpdateSettings={updateSettings}
+                />
+              </Suspense>
             </div>
           )}
           {mountedTabs.has('stats') && (
             <div hidden={tab !== 'stats'}>
-              <StatsTab workouts={workouts} meals={meals} settings={settings} activities={activities} onUpdateSettings={updateSettings} />
+              <Suspense fallback={<p className="py-16 text-center text-[13px] text-muted">加载中…</p>}>
+                <StatsTab workouts={workouts} meals={meals} settings={settings} activities={activities} onUpdateSettings={updateSettings} />
+              </Suspense>
             </div>
           )}
           {mountedTabs.has('history') && (
             <div hidden={tab !== 'history'}>
-              <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} activities={activities} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => go('today')} onImport={importBackup} onSnapshot={snapshotForImport} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+              <Suspense fallback={<p className="py-16 text-center text-[13px] text-muted">加载中…</p>}>
+                <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} activities={activities} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => go('today')} onImport={importBackup} onSnapshot={snapshotForImport} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+              </Suspense>
             </div>
           )}
         </main>
