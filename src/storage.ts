@@ -13,6 +13,49 @@ export const DEFAULT_SETTINGS: AppSettings = { weeklyGoalDays: 3, waterGoal: 8, 
 const newId = (): string =>
   globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
+// 载入警告：记录哪些 key 损坏/含被丢弃的条目，App 首次挂载时取走并展示给用户
+const loadWarnings: string[] = []
+export function takeLoadWarnings(): string[] {
+  // 去重：StrictMode 下初始化器双跑会把同一 key 压入两次
+  return Array.from(new Set(loadWarnings.splice(0, loadWarnings.length)))
+}
+
+// 损坏或含脏条目的 key：原始内容另存 .rescue 副本（配额满则放弃，不再阻塞载入）
+function rescueKey(key: string, raw: string): void {
+  try {
+    localStorage.setItem(`${key}.rescue`, raw)
+  } catch {
+    /* ignore */
+  }
+}
+
+// 列表类载入的通用路径：解析失败/非数组/含脏条目都留底原始内容并计入警告
+function loadList<T>(key: string, label: string, valid: (x: unknown) => x is T): T[] {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return []
+    const data: unknown = JSON.parse(raw)
+    if (!Array.isArray(data)) {
+      rescueKey(key, raw)
+      loadWarnings.push(label)
+      return []
+    }
+    const kept = data.filter(valid)
+    if (kept.length !== data.length) {
+      rescueKey(key, raw)
+      loadWarnings.push(`${label}（保留 ${kept.length}/${data.length} 条）`)
+    }
+    return kept
+  } catch {
+    const raw = localStorage.getItem(key)
+    if (raw) {
+      rescueKey(key, raw)
+      loadWarnings.push(label)
+    }
+    return []
+  }
+}
+
 // 旧版本里"再记一次"会在同一天产生多条 workout，今天页只能看到第一条。
 // 归一化：同日期的记录合并成一条，动作按保存先后拼接，保留最早的 id/创建时间。
 export function normalizeWorkouts(workouts: Workout[]): Workout[] {
@@ -29,15 +72,23 @@ export function normalizeWorkouts(workouts: Workout[]): Workout[] {
     const first = ordered[0]
     // 同日追加的最新保存时间：从最近到最早找第一条带 updatedAt 的
     const updatedAt = [...ordered].reverse().map((w) => w.updatedAt).find((v) => typeof v === 'number' && v > 0)
+    // 同一训练内动作 id 必须唯一：导入合并可能带来重复 id，重复会让「按 id 删除」一次移除多条
+    const seenIds = new Set<string>()
     merged.push({
       id: first.id,
       date: first.date,
       createdAt: first.createdAt,
       ...(updatedAt ? { updatedAt } : {}),
       durationSec: ordered.map((w) => w.durationSec).find((v) => typeof v === 'number' && v > 0),
-      exercises: ordered.flatMap((w) => w.exercises).map((ex) =>
-        ex.id ? ex : { ...ex, id: newId() },
-      ),
+      exercises: ordered.flatMap((w) => w.exercises).map((ex) => {
+        if (!ex.id || seenIds.has(ex.id)) {
+          const fresh = { ...ex, id: newId() }
+          seenIds.add(fresh.id)
+          return fresh
+        }
+        seenIds.add(ex.id)
+        return ex
+      }),
       note: ordered.map((w) => w.note).find((v) => typeof v === 'string' && v),
     })
   }
@@ -58,6 +109,7 @@ export function loadWorkouts(): Workout[] {
     if (valid.length !== data.length) {
       // 有坏条目：把原始数据另存救援副本，再返回干净数据（不静默丢失）
       try { localStorage.setItem(WORKOUTS_KEY + '.rescue', raw) } catch { /* 配额满则放弃救援副本 */ }
+      loadWarnings.push(`训练（保留 ${valid.length}/${data.length} 条）`)
     }
     return normalizeWorkouts(valid)
   } catch {
@@ -66,15 +118,17 @@ export function loadWorkouts(): Workout[] {
       const raw = localStorage.getItem(WORKOUTS_KEY)
       if (raw) localStorage.setItem(WORKOUTS_KEY + '.rescue', raw)
     } catch { /* ignore */ }
+    loadWarnings.push('训练')
     return []
   }
 }
 
-export function saveWorkouts(workouts: Workout[]): void {
+export function saveWorkouts(workouts: Workout[]): boolean {
   try {
     localStorage.setItem(WORKOUTS_KEY, JSON.stringify(workouts))
+    return true
   } catch {
-    /* 静默失败：内存里仍可正常使用 */
+    return false // 写入失败：内存里仍可正常使用，由 App 提示用户重试/导出
   }
 }
 
@@ -109,40 +163,28 @@ export function isValidMeal(m: unknown): m is MealEntry {
 }
 
 export function loadMeals(): MealEntry[] {
-  try {
-    const raw = localStorage.getItem(MEALS_KEY)
-    if (!raw) return []
-    const data: unknown = JSON.parse(raw)
-    return Array.isArray(data) ? data.filter(isValidMeal) : []
-  } catch {
-    return []
-  }
+  return loadList(MEALS_KEY, '饮食', isValidMeal)
 }
 
-export function saveMeals(meals: MealEntry[]): void {
+export function saveMeals(meals: MealEntry[]): boolean {
   try {
     localStorage.setItem(MEALS_KEY, JSON.stringify(meals))
+    return true
   } catch {
-    /* 静默失败 */
+    return false
   }
 }
 
 export function loadRoutines(): Routine[] {
-  try {
-    const raw = localStorage.getItem(ROUTINES_KEY)
-    if (!raw) return []
-    const data: unknown = JSON.parse(raw)
-    return Array.isArray(data) ? data.filter(isValidRoutine) : []
-  } catch {
-    return []
-  }
+  return loadList(ROUTINES_KEY, '训练模板', isValidRoutine)
 }
 
-export function saveRoutines(routines: Routine[]): void {
+export function saveRoutines(routines: Routine[]): boolean {
   try {
     localStorage.setItem(ROUTINES_KEY, JSON.stringify(routines))
+    return true
   } catch {
-    /* 静默失败 */
+    return false
   }
 }
 
@@ -171,21 +213,15 @@ function isValidRoutine(r: unknown): r is Routine {
 }
 
 export function loadWater(): WaterEntry[] {
-  try {
-    const raw = localStorage.getItem(WATER_KEY)
-    if (!raw) return []
-    const data: unknown = JSON.parse(raw)
-    return Array.isArray(data) ? data.filter(isValidWater) : []
-  } catch {
-    return []
-  }
+  return loadList(WATER_KEY, '饮水', isValidWater)
 }
 
-export function saveWater(water: WaterEntry[]): void {
+export function saveWater(water: WaterEntry[]): boolean {
   try {
     localStorage.setItem(WATER_KEY, JSON.stringify(water))
+    return true
   } catch {
-    /* 静默失败 */
+    return false
   }
 }
 
@@ -217,21 +253,15 @@ export function isValidActivity(a: unknown): a is ActivityEntry {
 }
 
 export function loadActivities(): ActivityEntry[] {
-  try {
-    const raw = localStorage.getItem(ACTIVITIES_KEY)
-    if (!raw) return []
-    const data: unknown = JSON.parse(raw)
-    return Array.isArray(data) ? data.filter(isValidActivity) : []
-  } catch {
-    return []
-  }
+  return loadList(ACTIVITIES_KEY, '运动', isValidActivity)
 }
 
-export function saveActivities(activities: ActivityEntry[]): void {
+export function saveActivities(activities: ActivityEntry[]): boolean {
   try {
     localStorage.setItem(ACTIVITIES_KEY, JSON.stringify(activities))
+    return true
   } catch {
-    /* 静默失败 */
+    return false
   }
 }
 
@@ -252,15 +282,21 @@ export function loadSettings(): AppSettings {
       mealChoice: isValidMealChoice(x.mealChoice),
     }
   } catch {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (raw) {
+      rescueKey(SETTINGS_KEY, raw)
+      loadWarnings.push('设置')
+    }
     return { ...DEFAULT_SETTINGS }
   }
 }
 
-export function saveSettings(settings: AppSettings): void {
+export function saveSettings(settings: AppSettings): boolean {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+    return true
   } catch {
-    /* 静默失败 */
+    return false
   }
 }
 
@@ -281,37 +317,37 @@ function isValidMetric(m: unknown): m is MetricEntry {
 }
 
 export function loadMetrics(): MetricEntry[] {
+  const raw = localStorage.getItem(METRICS_KEY)
+  // key 已存在（哪怕是空数组）说明已迁移过，绝不再从旧 key 复活已删除数据
+  if (raw !== null) return loadList(METRICS_KEY, '身体', isValidMetric)
+  // 老版本只有体重：一次性迁移到通用指标（严格校验，成功后删除旧 key）
   try {
-    const raw = localStorage.getItem(METRICS_KEY)
-    // key 已存在（哪怕是空数组）说明已迁移过，绝不再从旧 key 复活已删除数据
-    if (raw !== null) {
-      const data: unknown = JSON.parse(raw)
-      return Array.isArray(data) ? data.filter(isValidMetric) : []
-    }
-    // 老版本只有体重：一次性迁移到通用指标（严格校验，成功后删除旧 key）
     const legacy = localStorage.getItem(BODY_KEY)
     if (legacy) {
       const old: unknown = JSON.parse(legacy)
-      if (Array.isArray(old)) {
-        const migrated: MetricEntry[] = old
-          .filter(
-            (b): b is BodyEntry =>
-              !!b &&
-              typeof b === 'object' &&
-              isValidDate((b as BodyEntry).date) &&
-              isNum((b as BodyEntry).weightKg) &&
-              (b as BodyEntry).weightKg > 0 &&
-              (b as BodyEntry).weightKg < 1000,
-          )
-          .map((b) => ({ id: b.id, date: b.date, type: 'weight' as const, value: b.weightKg, createdAt: 0 }))
-        localStorage.setItem(METRICS_KEY, JSON.stringify(migrated))
-        try {
-          localStorage.removeItem(BODY_KEY)
-        } catch {
-          /* 旧 key 删除失败不影响使用 */
-        }
-        return migrated
+      if (!Array.isArray(old)) {
+        rescueKey(BODY_KEY, legacy)
+        loadWarnings.push('身体（旧数据）')
+        return []
       }
+      const migrated: MetricEntry[] = old
+        .filter(
+          (b): b is BodyEntry =>
+            !!b &&
+            typeof b === 'object' &&
+            isValidDate((b as BodyEntry).date) &&
+            isNum((b as BodyEntry).weightKg) &&
+            (b as BodyEntry).weightKg > 0 &&
+            (b as BodyEntry).weightKg < 1000,
+        )
+        .map((b) => ({ id: b.id, date: b.date, type: 'weight' as const, value: b.weightKg, createdAt: 0 }))
+      localStorage.setItem(METRICS_KEY, JSON.stringify(migrated))
+      try {
+        localStorage.removeItem(BODY_KEY)
+      } catch {
+        /* 旧 key 删除失败不影响使用 */
+      }
+      return migrated
     }
     return []
   } catch {
@@ -319,11 +355,12 @@ export function loadMetrics(): MetricEntry[] {
   }
 }
 
-export function saveMetrics(metrics: MetricEntry[]): void {
+export function saveMetrics(metrics: MetricEntry[]): boolean {
   try {
     localStorage.setItem(METRICS_KEY, JSON.stringify(metrics))
+    return true
   } catch {
-    /* 静默失败 */
+    return false
   }
 }
 
@@ -419,7 +456,8 @@ export function parseBackup(text: string): BackupData | null {
     : undefined
 
   const hasProfile = !!settings && (settings.heightCm != null || settings.sex != null || settings.birthYear != null)
-  const photos = Array.isArray(obj.photos) ? obj.photos : []
+  // photos 逐项校验：全部无效的照片不能让空集合获得「可导入」资格（restorePhotos 阶段还有二次解码校验）
+  const photos = Array.isArray(obj.photos) ? (obj.photos as unknown[]).filter(isValidPhotoBackup) : []
   if (
     workouts.length === 0 &&
     body.length === 0 &&
@@ -433,6 +471,23 @@ export function parseBackup(text: string): BackupData | null {
   )
     return null
   return { workouts, body: [], metrics, meals, routines, water, activities, settings, photos }
+}
+
+// 备份里的照片条目：字段齐全、dataUrl 是图片前缀且尺寸在导出上限内（真正可解码性由 restorePhotos 校验）
+function isValidPhotoBackup(p: unknown): boolean {
+  if (!p || typeof p !== 'object') return false
+  const x = p as Record<string, unknown>
+  return (
+    typeof x.id === 'string' &&
+    x.id.length > 0 &&
+    isValidDate(x.date) &&
+    isNum(x.createdAt) &&
+    typeof x.mime === 'string' &&
+    x.mime.startsWith('image/') &&
+    typeof x.dataUrl === 'string' &&
+    x.dataUrl.startsWith('data:image/') &&
+    x.dataUrl.length < 28_000_000
+  )
 }
 
 // 备份顶层版本/来源警告（parseBackup 通过后调用）：未来版本备份给用户显式提示

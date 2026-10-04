@@ -37,7 +37,13 @@ export function TodayTab({
   useEffect(() => {
     // 补记过去日的保存不在今天页反馈（历史页有自己的确认）；成就弹层开着时等它关闭再反馈
     if (!lastAdded || lastAdded.date !== today || hasCelebration) return
-    setToast(lastAdded.appended ? `已追加 ${lastAdded.count} 个动作到今天的训练` : '打卡成功，开练！')
+    setToast(
+      lastAdded.appended
+        ? `已追加 ${lastAdded.count} 个动作到今天的训练`
+        : lastAdded.count === 0
+          ? '已记录今天的训练，明细可以稍后补'
+          : '打卡成功，开练！',
+    )
     const t = setTimeout(() => setToast(null), 2600)
     return () => clearTimeout(t)
   }, [lastAdded, today, hasCelebration])
@@ -109,7 +115,7 @@ export function TodayTab({
         onClick={onGoRecord}
         className={`${todayWorkout ? 'mt-6 bg-clay text-white font-medium hover:bg-clay/90' : 'mt-3 border border-line text-[14px] text-muted hover:text-clay hover:border-clay/40'} w-full py-3 rounded-xl active:scale-[0.98] transition`}
       >
-        {todayWorkout ? '再记一次' : '记录今天的训练'}
+        {todayWorkout ? (todayWorkout.exercises.length === 0 ? '补记训练明细' : '再记一次') : '记录今天的训练'}
       </button>
 
       <button

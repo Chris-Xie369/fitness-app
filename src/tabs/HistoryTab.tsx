@@ -36,6 +36,7 @@ export function HistoryTab({
   onUpdateNote,
   onBack,
   onImport,
+  onSnapshot,
   lastAdded,
   hasCelebration,
 }: {
@@ -51,6 +52,7 @@ export function HistoryTab({
   onUpdateNote: (workoutId: string, note: string) => void
   onBack: () => void
   onImport: (data: BackupData) => Promise<{ restored: number; skipped: number } | undefined> | undefined
+  onSnapshot: () => boolean
   lastAdded: { at: number; appended: boolean; count: number; date: string } | null
   hasCelebration: boolean
 }) {
@@ -58,6 +60,8 @@ export function HistoryTab({
   // 二次确认：一天的卡片包含当天全部动作，误删整天损失大。第一次点只进入确认态，4 秒自动复位
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [pending, setPending] = useState<BackupData | null>(null)
+  // 选好文件即写导入前快照（不等确认）；false = 快照写入失败，面板要警告用户先手动导出
+  const [snapshotOk, setSnapshotOk] = useState<boolean | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [flashDate, setFlashDate] = useState<string | null>(null)
   const [view, setView] = useState<'list' | 'calendar'>('list')
@@ -147,6 +151,7 @@ export function HistoryTab({
         setMsg('文件无法识别，请选择本 App 导出的备份文件')
         return
       }
+      setSnapshotOk(onSnapshot()) // 确认前就留底当前数据；写入失败会在确认面板警告
       setMsg(null)
       setPendingWarning(backupMetaWarning(String(reader.result ?? '')))
       setPending(data)
@@ -157,7 +162,16 @@ export function HistoryTab({
   async function confirmImport() {
     if (!pending) return
     const photoTotal = pending.photos?.length ?? 0
-    const result = await onImport(pending)
+    onSnapshot() // 选文件后用户可能又记了几笔：确认瞬间重新留底，保证快照是导入前最新的数据
+    let result: { restored: number; skipped: number } | undefined
+    try {
+      result = await onImport(pending)
+    } catch {
+      // 照片恢复抛错等：结构化数据可能已替换，不能装作成功，也不能把面板留在半路
+      setMsg('导入出错：数据可能已部分替换但未完成。请重新打开 App 核对内容，必要时用导入前快照或备份文件恢复，再重试一次。')
+      setPending(null)
+      return
+    }
     let text = `导入成功：${pending.workouts.length} 天训练 · ${(pending.metrics?.length ?? 0)} 条身体记录 · ${pending.meals.length} 条饮食 · ${(pending.activities?.length ?? 0)} 条运动 · ${pending.routines.length} 个模板`
     if (photoTotal > 0 && result) {
       text += ` · 照片恢复 ${result.restored}/${photoTotal} 张`
@@ -444,7 +458,11 @@ export function HistoryTab({
             <p className="text-ink">
               本机现有 {workouts.length} 天训练 · {meals.length} 条饮食 · {metrics.length} 条身体记录 · {routines.length} 个模板 · {water.length} 天饮水 · {activities.length} 条运动，将被替换为备份中的 {pending.workouts.length} 天训练 · {pending.meals.length} 条饮食 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水 · {(pending.activities?.length ?? 0)} 条运动{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
             </p>
-            <p className="mt-1 text-muted">导入前已自动保存一份当前数据快照，误操作可联系开发者从本地恢复。</p>
+            {snapshotOk === false ? (
+              <p className="mt-1 text-clay">警告：导入前快照写入失败（可能是存储空间不足）。建议先「导出备份」留底当前数据，再确认导入。</p>
+            ) : (
+              <p className="mt-1 text-muted">已在本机自动留底一份当前数据快照（照片不包含在内）；误导入后可用这份留底恢复。</p>
+            )}
             {pendingWarning && <p className="mt-1 text-clay">{pendingWarning}</p>}
             <div className="mt-2 flex gap-2">
               <button onClick={() => void confirmImport()} className="px-3 py-1.5 rounded-lg bg-clay text-white">确认导入</button>

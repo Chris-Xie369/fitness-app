@@ -13,7 +13,7 @@ import { newlySetPRs, weekGoalJustReached, weekKey, type CelebrationItem } from 
 import { deleteRoutine, upsertRoutine } from './lib/routines'
 import { restorePhotos } from './lib/photos'
 import { useRestTimer } from './hooks/useRestTimer'
-import { loadActivities, loadMeals, loadMetrics, loadRoutines, loadSettings, loadWater, loadWorkouts, saveActivities, saveMeals, saveMetrics, saveRoutines, saveSettings, saveWater, saveWorkouts } from './storage'
+import { loadActivities, loadMeals, loadMetrics, loadRoutines, loadSettings, loadWater, loadWorkouts, saveActivities, saveMeals, saveMetrics, saveRoutines, saveSettings, saveWater, saveWorkouts, takeLoadWarnings } from './storage'
 import type { BackupData } from './storage'
 import { todayStr } from './lib/streak'
 import type { ActivityEntry, AppSettings, MealEntry, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
@@ -33,6 +33,17 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [metrics, setMetrics] = useState<MetricEntry[]>(() => loadMetrics())
   const [tab, setTab] = useState<Tab>('today')
+  // 已访问过的 tab 保持挂载（切页用 hidden 隐藏）：表单草稿在去饮食/身体转一圈后还在
+  const [mountedTabs, setMountedTabs] = useState<ReadonlySet<Tab>>(() => new Set<Tab>(['today']))
+  function go(t: Tab) {
+    setTab(t)
+    setMountedTabs((prev) => {
+      if (prev.has(t)) return prev
+      const next = new Set(prev)
+      next.add(t)
+      return next
+    })
+  }
   const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
   const [achQueue, setAchQueue] = useState<CelebrationItem[]>([])
   const [workoutStart, setWorkoutStart] = useState<number | null>(null)
@@ -42,14 +53,20 @@ export default function App() {
     mainRef.current?.scrollTo({ top: 0 })
   }, [tab])
 
-  // 状态一变就自动存（刷新不丢）
-  useEffect(() => saveWorkouts(workouts), [workouts])
-  useEffect(() => saveMeals(meals), [meals])
-  useEffect(() => saveRoutines(routines), [routines])
-  useEffect(() => saveWater(water), [water])
-  useEffect(() => saveActivities(activities), [activities])
-  useEffect(() => saveSettings(settings), [settings])
-  useEffect(() => saveMetrics(metrics), [metrics])
+  // 状态一变就自动存（刷新不丢）；任一 key 写入失败则横幅提示（记录仍在内存，可重试或先导出）
+  const [saveFailed, setSaveFailed] = useState(false)
+  const [saveTick, setSaveTick] = useState(0)
+  useEffect(() => {
+    const ok = [saveWorkouts(workouts), saveMeals(meals), saveRoutines(routines), saveWater(water), saveActivities(activities), saveSettings(settings), saveMetrics(metrics)].every(Boolean)
+    setSaveFailed(!ok)
+  }, [workouts, meals, routines, water, activities, settings, metrics, saveTick])
+
+  // 上次运行有数据损坏被留底时，首次挂载给用户一句交代（takeLoadWarnings 取走即清）
+  const [loadNotice, setLoadNotice] = useState<string | null>(null)
+  useEffect(() => {
+    const warnings = takeLoadWarnings()
+    if (warnings.length > 0) setLoadNotice(`上次保存的部分数据已损坏，原始内容已自动留底在本机，本次加载了可用部分：${warnings.join('、')}`)
+  }, [])
 
   // 记录开始：今天第一次填表时打点，用于计算训练时长
   function beginWorkout() {
@@ -94,7 +111,7 @@ export default function App() {
     if (isTodaySave) setWorkoutStart(null) // 补记过去日不清空今天尚未结束的计时
     setLastAdded({ at: w.createdAt, appended, count: w.exercises.length, date: w.date })
     // 记今天跳今天页；补记过去日跳历史页（今天页看不到那条）
-    setTab(w.date === todayStr() ? 'today' : 'history')
+    go(w.date === todayStr() ? 'today' : 'history')
   }
   // 一键打卡：不填明细先占住今天的训练日（周目标/连续天数照常计数），之后可再补记动作
   function checkInToday() {
@@ -186,16 +203,22 @@ export default function App() {
   function deleteMetric(id: string) {
     setMetrics((prev) => prev.filter((m) => m.id !== id))
   }
-  // 备份恢复：整体替换本地数据（useEffect 会立刻持久化）；照片写入 IndexedDB 并返回恢复结果
-  function importBackup(data: BackupData) {
-    // 导入前自动快照当前数据（仅结构化数据，不含照片），误导入后可从该 key 手工找回
+  // 导入前快照当前数据（仅结构化数据，不含照片）：选好文件即写，不等确认；误导入后可从 preImportBackup 找回
+  function snapshotForImport(): boolean {
     try {
       localStorage.setItem(
         'fitness-app:preImportBackup',
         JSON.stringify({ app: 'fitness-app', version: 1, exportedAt: new Date().toISOString(),
           workouts, metrics, meals, routines, water, activities, settings }),
       )
-    } catch { /* 配额满则跳过快照，不阻断导入 */ }
+      return true
+    } catch {
+      return false // 配额满等：快照失败要告诉用户（导入面板会给警告）
+    }
+  }
+
+  // 备份恢复：整体替换本地数据（useEffect 会立刻持久化）；照片写入 IndexedDB 并返回恢复结果
+  function importBackup(data: BackupData) {
     setWorkouts(data.workouts)
     setMetrics(data.metrics ?? [])
     setMeals(data.meals)
@@ -209,51 +232,78 @@ export default function App() {
   return (
     <PhoneFrame>
       <div className="flex h-full flex-col pt-[env(safe-area-inset-top)]">
+        {loadNotice && (
+          <div className="flex items-center gap-2 border-b border-line bg-surface px-4 py-2 text-[12px] text-muted">
+            <span className="min-w-0 flex-1">{loadNotice}</span>
+            <button onClick={() => setLoadNotice(null)} className="shrink-0 px-2 py-1 -m-1 text-[12px] text-muted-weak hover:text-clay">知道了</button>
+          </div>
+        )}
+        {saveFailed && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-clay/30 bg-clay/10 px-4 py-2 text-[12px] text-ink">
+            <span className="min-w-40 flex-1">存储写入失败，最近的更改还没保存到本机。记录还在页面上，可重试或先导出备份。</span>
+            <button onClick={() => setSaveTick((t) => t + 1)} className="shrink-0 px-2.5 py-1 rounded-lg bg-clay text-white">重试保存</button>
+            <button onClick={() => go('history')} className="shrink-0 px-2.5 py-1 rounded-lg border border-clay/40 text-clay">去导出备份</button>
+          </div>
+        )}
         <main ref={mainRef} className="flex-1 overflow-y-auto">
-          {tab === 'today' && (
+          <div hidden={tab !== 'today'}>
             <TodayTab
               workouts={workouts}
               lastAdded={lastAdded}
               weeklyGoalDays={settings.weeklyGoalDays}
               hasCelebration={achQueue.length > 0}
               onCheckIn={checkInToday}
-              onGoRecord={() => setTab('record')}
-              onGoHistory={() => setTab('history')}
+              onGoRecord={() => go('record')}
+              onGoHistory={() => go('history')}
             />
+          </div>
+          {mountedTabs.has('record') && (
+            <div hidden={tab !== 'record'}>
+              <RecordTab
+                onSave={addWorkout}
+                onBeginWorkout={beginWorkout}
+                workouts={workouts}
+                routines={routines}
+                onUpsertRoutine={handleUpsertRoutine}
+                onDeleteRoutine={handleDeleteRoutine}
+                restTimer={restTimer}
+              />
+            </div>
           )}
-          {tab === 'record' && (
-            <RecordTab
-              onSave={addWorkout}
-              onBeginWorkout={beginWorkout}
-              workouts={workouts}
-              routines={routines}
-              onUpsertRoutine={handleUpsertRoutine}
-              onDeleteRoutine={handleDeleteRoutine}
-              restTimer={restTimer}
-            />
+          {mountedTabs.has('diet') && (
+            <div hidden={tab !== 'diet'}>
+              <DietTab meals={meals} water={water} workouts={workouts} metrics={metrics} settings={settings} activities={activities} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onAddActivity={addActivity} onDeleteActivity={deleteActivity} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />
+            </div>
           )}
-          {tab === 'diet' && <DietTab meals={meals} water={water} workouts={workouts} metrics={metrics} settings={settings} activities={activities} onAdd={addMeal} onDelete={deleteMeal} onChangeWater={changeWater} onAddActivity={addActivity} onDeleteActivity={deleteActivity} onUpdateSettings={updateSettings} onCopyDay={copyMealsDay} />}
-          {tab === 'body' && (
-            <BodyTab
-              metrics={metrics}
-              settings={settings}
-              onSaveMetric={saveMetric}
-              onDeleteMetric={deleteMetric}
-              onUpdateSettings={updateSettings}
-            />
+          {mountedTabs.has('body') && (
+            <div hidden={tab !== 'body'}>
+              <BodyTab
+                metrics={metrics}
+                settings={settings}
+                onSaveMetric={saveMetric}
+                onDeleteMetric={deleteMetric}
+                onUpdateSettings={updateSettings}
+              />
+            </div>
           )}
-          {tab === 'stats' && <StatsTab workouts={workouts} meals={meals} settings={settings} activities={activities} onUpdateSettings={updateSettings} />}
-          {tab === 'history' && (
-            <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} activities={activities} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => setTab('today')} onImport={importBackup} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+          {mountedTabs.has('stats') && (
+            <div hidden={tab !== 'stats'}>
+              <StatsTab workouts={workouts} meals={meals} settings={settings} activities={activities} onUpdateSettings={updateSettings} />
+            </div>
+          )}
+          {mountedTabs.has('history') && (
+            <div hidden={tab !== 'history'}>
+              <HistoryTab workouts={workouts} meals={meals} metrics={metrics} routines={routines} water={water} activities={activities} onDelete={deleteWorkout} onRemoveExercise={removeExercise} onUpdateSets={updateExerciseSets} onUpdateNote={updateWorkoutNote} onBack={() => go('today')} onImport={importBackup} onSnapshot={snapshotForImport} lastAdded={lastAdded} hasCelebration={achQueue.length > 0} />
+            </div>
           )}
         </main>
 
         <nav className="flex border-t border-line bg-paper pb-[env(safe-area-inset-bottom)]">
-          <TabButton active={tab === 'record'} onClick={() => setTab('record')} label="记录" icon={<RecordIcon />} />
-          <TabButton active={tab === 'diet'} onClick={() => setTab('diet')} label="饮食" icon={<DietIcon />} />
-          <TabButton active={tab === 'today' || tab === 'history'} onClick={() => setTab('today')} label="打卡" icon={<TodayIcon />} />
-          <TabButton active={tab === 'body'} onClick={() => setTab('body')} label="身体" icon={<BodyIcon />} />
-          <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} label="统计" icon={<StatsIcon />} />
+          <TabButton active={tab === 'record'} onClick={() => go('record')} label="记录" icon={<RecordIcon />} />
+          <TabButton active={tab === 'diet'} onClick={() => go('diet')} label="饮食" icon={<DietIcon />} />
+          <TabButton active={tab === 'today' || tab === 'history'} onClick={() => go('today')} label="打卡" icon={<TodayIcon />} />
+          <TabButton active={tab === 'body'} onClick={() => go('body')} label="身体" icon={<BodyIcon />} />
+          <TabButton active={tab === 'stats'} onClick={() => go('stats')} label="统计" icon={<StatsIcon />} />
         </nav>
       {achQueue.length > 0 && <Celebration queue={achQueue} onClose={() => setAchQueue([])} />}
       </div>
