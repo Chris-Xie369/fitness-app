@@ -1,5 +1,6 @@
 import type { ActivityEntry, AppSettings, BodyEntry, MealEntry, MealType, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
 import { isValidMetricValue } from './lib/body'
+import { countsOf, isEmpty, type CollectionData } from './collections'
 
 const WORKOUTS_KEY = 'fitness-app:workouts'
 const BODY_KEY = 'fitness-app:body'
@@ -365,7 +366,7 @@ export function saveMetrics(metrics: MetricEntry[]): boolean {
 
 // ===== 备份导出 / 导入 =====
 
-export type BackupData = { workouts: Workout[]; body?: BodyEntry[]; metrics: MetricEntry[]; meals: MealEntry[]; routines: Routine[]; water: WaterEntry[]; activities: ActivityEntry[]; settings?: AppSettings; photos?: unknown[] }
+export type BackupData = CollectionData & { body?: BodyEntry[]; settings?: AppSettings; photos?: unknown[] }
 
 function isNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
@@ -457,19 +458,9 @@ export function parseBackup(text: string): BackupData | null {
   const hasProfile = !!settings && (settings.heightCm != null || settings.sex != null || settings.birthYear != null)
   // photos 逐项校验：全部无效的照片不能让空集合获得「可导入」资格（restorePhotos 阶段还有二次解码校验）
   const photos = Array.isArray(obj.photos) ? (obj.photos as unknown[]).filter(isValidPhotoBackup) : []
-  if (
-    workouts.length === 0 &&
-    body.length === 0 &&
-    metrics.length === 0 &&
-    meals.length === 0 &&
-    routines.length === 0 &&
-    water.length === 0 &&
-    activities.length === 0 &&
-    photos.length === 0 &&
-    !hasProfile
-  )
-    return null
-  return { workouts, body: [], metrics, meals, routines, water, activities, settings, photos }
+  const collections: CollectionData = { workouts, metrics, meals, routines, water, activities }
+  if (isEmpty(countsOf(collections)) && body.length === 0 && photos.length === 0 && !hasProfile) return null
+  return { ...collections, body: [], settings, photos }
 }
 
 // 备份里的照片条目：字段齐全、dataUrl 是图片前缀且尺寸在导出上限内（真正可解码性由 restorePhotos 校验）
@@ -540,6 +531,10 @@ export function dismissBackupHint(): BackupHintTimes {
   return next
 }
 
+export function loadCollections(): CollectionData {
+  return { workouts: loadWorkouts(), meals: loadMeals(), metrics: loadMetrics(), routines: loadRoutines(), water: loadWater(), activities: loadActivities() }
+}
+
 // 读出当前全部数据，打包成备份文本
 export function exportBackup(): string {
   return JSON.stringify(
@@ -547,13 +542,8 @@ export function exportBackup(): string {
       app: 'fitness-app',
       version: 1,
       exportedAt: new Date().toISOString(),
-      workouts: loadWorkouts(),
+      ...loadCollections(),
       body: [],
-      metrics: loadMetrics(),
-      meals: loadMeals(),
-      routines: loadRoutines(),
-      water: loadWater(),
-      activities: loadActivities(),
       settings: loadSettings(),
     },
     null,

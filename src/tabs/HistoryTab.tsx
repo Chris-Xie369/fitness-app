@@ -3,6 +3,7 @@ import type { ActivityEntry, MealEntry, MetricEntry, Routine, WaterEntry, Workou
 import type { BackupData } from '../storage'
 import { backupMetaWarning, dismissBackupHint, exportBackup, loadBackupHintTimes, markExported, parseBackup } from '../storage'
 import { backupHintState } from '../lib/backup'
+import { countsOf, describeCounts, recordCount } from '../collections'
 import { exportPhotosForBackup } from '../lib/photos'
 import { todayStr } from '../lib/date'
 
@@ -72,7 +73,7 @@ export function HistoryTab({
   const [hintTimes, setHintTimes] = useState(loadBackupHintTimes)
   const [exporting, setExporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const hint = backupHintState({ now: Date.now(), ...hintTimes, recordCount: workouts.length + meals.length + metrics.length + activities.length })
+  const hint = backupHintState({ now: Date.now(), ...hintTimes, recordCount: recordCount(countsOf({ workouts, meals, metrics, routines, water, activities })) })
 
   useEffect(() => {
     if (!confirmId) return
@@ -169,7 +170,7 @@ export function HistoryTab({
       setPending(null)
       return
     }
-    let text = `导入成功：${pending.workouts.length} 天训练 · ${(pending.metrics?.length ?? 0)} 条身体记录 · ${pending.meals.length} 条饮食 · ${(pending.activities?.length ?? 0)} 条运动 · ${pending.routines.length} 个模板`
+    let text = `导入成功：${describeCounts(countsOf(pending))}`
     if (photoTotal > 0 && result) {
       text += ` · 照片恢复 ${result.restored}/${photoTotal} 张`
       if (result.skipped > 0) text += `（${result.skipped} 张无法恢复）`
@@ -453,7 +454,7 @@ export function HistoryTab({
         {pending && (
           <div className="mt-3 rounded-xl bg-paper border border-clay/30 p-3 text-[12px]">
             <p className="text-ink">
-              本机现有 {workouts.length} 天训练 · {meals.length} 条饮食 · {metrics.length} 条身体记录 · {routines.length} 个模板 · {water.length} 天饮水 · {activities.length} 条运动，将被替换为备份中的 {pending.workouts.length} 天训练 · {pending.meals.length} 条饮食 · {(pending.metrics?.length ?? 0)} 条身体记录 · {pending.routines.length} 个模板 · {pending.water.length} 天饮水 · {(pending.activities?.length ?? 0)} 条运动{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
+              本机现有 {describeCounts(countsOf({ workouts, meals, metrics, routines, water, activities }))}，将被替换为备份中的 {describeCounts(countsOf(pending))}{pending.photos?.length ? ` · ${pending.photos.length} 张照片` : ''}
             </p>
             {snapshotOk === false ? (
               <p className="mt-1 text-clay">警告：导入前快照写入失败（可能是存储空间不足）。建议先「导出备份」留底当前数据，再确认导入。</p>
