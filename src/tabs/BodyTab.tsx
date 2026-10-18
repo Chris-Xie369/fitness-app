@@ -4,6 +4,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import type { AppSettings, MetricEntry, MetricType } from '../types'
 import { METRIC_LIMITS, ageFromBirthYear, bmi, bmiCategory, bmrMifflin, fatMass, isValidMetricValue, leanMass, movingAverage, weightVelocity } from '../lib/body'
 import { ProgressPhotos } from '../components/ProgressPhotos'
+import { themeColor } from '../lib/theme'
 
 const METRICS: { type: MetricType; label: string; unit: string; placeholder: string; hint: string }[] = [
   { type: 'weight', label: '体重', unit: 'kg', placeholder: '70.5', hint: '晨起空腹、同一台秤；单日波动多为水分，看趋势' },
@@ -14,11 +15,6 @@ const METRICS: { type: MetricType; label: string; unit: string; placeholder: str
   { type: 'upperArm', label: '上臂围', unit: 'cm', placeholder: '33', hint: '屈臂收紧时二头肌最粗处，固定同一侧' },
   { type: 'thigh', label: '大腿围', unit: 'cm', placeholder: '55', hint: '臀褶下方大腿最粗处水平一圈，重心均分双腿' },
 ]
-
-function token(name: string, fallback: string): string {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return v || fallback
-}
 
 export function BodyTab({
   metrics,
@@ -51,9 +47,9 @@ export function BodyTab({
   })
 
   const meta = METRICS.find((m) => m.type === type)!
-  const clay = token('--color-clay', '#B8553A')
-  const muted = token('--color-muted', '#8C8275')
-  const line = token('--color-line', '#E2DBCD')
+  const clay = themeColor('clay')
+  const muted = themeColor('muted')
+  const line = themeColor('line')
 
   const series = useMemo(
     () =>

@@ -10,12 +10,7 @@ import { estimate1RM, personalRecords } from '../lib/pr'
 import { ZeroBar } from '../components/ZeroBar'
 import { GoalRing } from '../components/GoalRing'
 import { achievements } from '../lib/achievements'
-
-// 从 CSS 变量读颜色，让图表跟着主题走（与 BodyTab 一致）
-function token(name: string, fallback: string): string {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return v || fallback
-}
+import { themeColor } from '../lib/theme'
 
 function WeekTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; days: number; sets: number } }> }) {
   if (!active || !payload?.length) return null
@@ -53,10 +48,10 @@ export function StatsTab({
   onUpdateSettings: (patch: Partial<{ weeklyGoalDays: number; waterGoal: number }>) => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
-  const clay = token('--color-clay', '#B8553A')
-  const muted = token('--color-muted', '#8C8275')
-  const line = token('--color-line', '#E2DBCD')
-  const ink = token('--color-ink', '#211C16')
+  const clay = themeColor('clay')
+  const muted = themeColor('muted')
+  const line = themeColor('line')
+  const ink = themeColor('ink')
 
   if (workouts.length === 0 && activities.length === 0) {
     return (
