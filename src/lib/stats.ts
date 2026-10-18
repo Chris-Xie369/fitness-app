@@ -1,14 +1,6 @@
 import type { Workout } from '../types'
+import { dateKey, mondayOf } from './date'
 
-// 周一 0 点（与 streak.weekStatus 的一周口径一致）
-export function mondayOf(d: Date): Date {
-  const offset = d.getDay() === 0 ? -6 : 1 - d.getDay()
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + offset)
-}
-
-function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 function mdLabel(d: Date): string {
   return `${d.getMonth() + 1}/${d.getDate()}`
@@ -27,9 +19,9 @@ function setsByDate(workouts: Workout[]): Map<string, number> {
 
 export type Overview = { totalDays: number; weekDays: number; totalSets: number }
 
-export function overview(workouts: Workout[]): Overview {
+export function overview(workouts: Workout[], now = new Date()): Overview {
   const dates = new Set(workouts.map((w) => w.date))
-  const thisMonday = dateKey(mondayOf(new Date()))
+  const thisMonday = dateKey(mondayOf(now))
   const weekDays = [...dates].filter((s) => s >= thisMonday).length
   const totalSets = workouts.reduce((n, w) => n + setsOf(w), 0)
   return { totalDays: dates.size, weekDays, totalSets }
@@ -82,9 +74,9 @@ export function exerciseRanking(workouts: Workout[]): ExerciseStat[] {
 export type HeatCell = { date: string; sets: number; trained: boolean }
 
 // 最近 n 周打卡热力：按列（周）排列，每列周一→周日，供 CSS grid-flow-col 使用
-export function heatmap(workouts: Workout[], n = 12): HeatCell[] {
+export function heatmap(workouts: Workout[], n = 12, now = new Date()): HeatCell[] {
   const byDate = setsByDate(workouts)
-  const monday = mondayOf(new Date())
+  const monday = mondayOf(now)
   const cells: HeatCell[] = []
   for (let i = n - 1; i >= 0; i--) {
     const colMonday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - i * 7)

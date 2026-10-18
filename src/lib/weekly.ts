@@ -1,5 +1,5 @@
 import type { Workout } from '../types'
-import { mondayOf } from './stats'
+import { addDays, dateKey, daysBetween, mondayOf } from './date'
 
 export type WeekSummary = {
   trainDays: number
@@ -8,10 +8,6 @@ export type WeekSummary = {
   durationMin: number
   avgKcal: number
   kcalDays: number
-}
-
-function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // 汇总某周前 dayCount 天（周一起）的训练与饮食。dayCount 让"本周至今"与"上周同星期区间"可比
@@ -63,7 +59,7 @@ export function weeklyReport(workouts: Workout[], kcalByDate: Map<string, number
   // 本周一到今天过了几天（周日=第7天）
   const elapsedDays = Math.min(
     7,
-    Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - thisMonday.getTime()) / 86400000) + 1,
+    daysBetween(thisMonday, now) + 1,
   )
   return {
     thisWeek: summarizeWeek(workouts, kcalByDate, thisMonday, elapsedDays),
@@ -103,7 +99,7 @@ export function weeklyInsight(r: WeeklyReport): string {
 export function weeklySetsSeries(workouts: Workout[], now = new Date(), weeks = 8): number[] {
   const out: number[] = []
   for (let i = weeks - 1; i >= 0; i--) {
-    const monday = new Date(mondayOf(now).getFullYear(), mondayOf(now).getMonth(), mondayOf(now).getDate() - i * 7)
+    const monday = addDays(mondayOf(now), -i * 7)
     const r = summarizeWeek(workouts, new Map(), monday, 7)
     out.push(r.totalSets)
   }

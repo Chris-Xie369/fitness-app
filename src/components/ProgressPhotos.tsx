@@ -1,7 +1,7 @@
+import { todayStr } from '../lib/date'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { compressImage } from '../lib/image'
 import { deletePhoto, listPhotos, newPhotoId, putPhoto, type StoredPhoto } from '../lib/photos'
-import { todayStr } from '../lib/streak'
 
 function hhmm(ts: number): string {
   const d = new Date(ts)

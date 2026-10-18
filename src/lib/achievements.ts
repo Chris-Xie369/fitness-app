@@ -1,4 +1,5 @@
 import type { MealEntry, Workout } from '../types'
+import { dateKey, shiftDate } from './date'
 
 export type Achievement = {
   id: string
@@ -19,10 +20,7 @@ export function longestStreak(workouts: Workout[]): number {
   let prev: string | null = null
   for (const s of days) {
     if (prev !== null) {
-      const [y, m, d] = prev.split('-').map(Number)
-      const next = new Date(y, m - 1, d + 1)
-      const key = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
-      run = s === key ? run + 1 : 1
+      run = s === shiftDate(prev, 1) ? run + 1 : 1
     } else {
       run = 1
     }
@@ -37,17 +35,13 @@ export function longestStreak(workouts: Workout[]): number {
 export function mealStreak(meals: MealEntry[], now = new Date()): number {
   const days = new Set(meals.map((m) => m.date))
   let d = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  if (!days.has(fmtDate(d))) d.setDate(d.getDate() - 1)
+  if (!days.has(dateKey(d))) d.setDate(d.getDate() - 1)
   let run = 0
-  while (days.has(fmtDate(d))) {
+  while (days.has(dateKey(d))) {
     run++
     d.setDate(d.getDate() - 1)
   }
   return run
-}
-
-function fmtDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // 从训练记录推导全部成就（含未达成的进度）

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Exercise, Routine, SetEntry, Workout } from '../types'
-import { todayStr } from '../lib/streak'
-import { dayLabel, shiftDate } from '../lib/date'
+import { dayLabel, shiftDate, todayStr } from '../lib/date'
 import { COMMON_EXERCISES, formatSets, lastSetsFor, recentExerciseNames } from '../lib/exercises'
 import { nextSuggestion } from '../lib/progression'
 import { estimate1RM } from '../lib/pr'

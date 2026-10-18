@@ -1,5 +1,6 @@
 export type Sex = 'male' | 'female'
 import type { MetricType } from '../types'
+import { addDays, dateKey, daysBetween, parseDateKey } from './date'
 
 // 各类身体指标的合理边界：个人记录用途的宽松产品规则，UI 录入/载入校验/备份解析三处共用
 // （120% 体脂这类数学上不可能的值必须在输入时就拦住，否则派生的瘦体重会变负数）
@@ -85,12 +86,11 @@ export function weightVelocity(
     .sort((a, b) => a.date.localeCompare(b.date))
   if (weights.length < 2) return null
   const latest = weights[weights.length - 1]
-  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - weeks * 7)
-  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`
+  const cutoffKey = dateKey(addDays(now, -weeks * 7))
   const inWindow = weights.filter((m) => m.date <= cutoffKey)
   const start = inWindow.length > 0 ? inWindow[inWindow.length - 1] : weights.find((m) => m.date < latest.date)
   if (!start || start.date === latest.date) return null
-  const days = Math.max(1, Math.round((new Date(latest.date).getTime() - new Date(start.date).getTime()) / 86400000))
+  const days = Math.max(1, daysBetween(parseDateKey(start.date), parseDateKey(latest.date)))
   const wk = days / 7
   const delta = Math.round((latest.value - start.value) * 10) / 10
   return { kgPerWeek: Math.round((delta / wk) * 100) / 100, delta, weeks: Math.round(wk * 10) / 10 }

@@ -4,6 +4,7 @@ import type { BackupData } from '../storage'
 import { backupMetaWarning, dismissBackupHint, exportBackup, loadBackupHintTimes, markExported, parseBackup } from '../storage'
 import { backupHintState } from '../lib/backup'
 import { exportPhotosForBackup } from '../lib/photos'
+import { todayStr } from '../lib/date'
 
 const WEEKDAYS = '日一二三四五六'
 
@@ -13,10 +14,6 @@ function formatDate(dateStr: string): string {
   return `${m} 月 ${d} 日 · 周${WEEKDAYS[dt.getDay()]}`
 }
 
-function todayStamp(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 function fmtTime(t: number): string {
   const d = new Date(t)
@@ -103,7 +100,7 @@ export function HistoryTab({
     if (exporting) return
     setExporting(true)
     try {
-      const fileName = `fitness-backup-${todayStamp()}.json`
+      const fileName = `fitness-backup-${todayStr()}.json`
       const data = JSON.parse(exportBackup())
       data.photos = await exportPhotosForBackup()
       const file = new File([JSON.stringify(data, null, 2)], fileName, { type: 'application/json' })
@@ -241,7 +238,7 @@ export function HistoryTab({
       return `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     }),
   ]
-  const todayDate = todayStamp()
+  const todayDate = todayStr()
   const pickedWorkout = pickedDate ? workouts.find((w) => w.date === pickedDate) : null
 
   return (

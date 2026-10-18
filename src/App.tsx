@@ -16,7 +16,7 @@ import { restorePhotos } from './lib/photos'
 import { useRestTimer } from './hooks/useRestTimer'
 import { loadActivities, loadMeals, loadMetrics, loadRoutines, loadSettings, loadWater, loadWorkouts, saveActivities, saveMeals, saveMetrics, saveRoutines, saveSettings, saveWater, saveWorkouts, takeLoadWarnings } from './storage'
 import type { BackupData } from './storage'
-import { todayStr } from './lib/streak'
+import { todayStr } from './lib/date'
 import type { ActivityEntry, AppSettings, MealEntry, MetricEntry, MetricType, Routine, WaterEntry, Workout } from './types'
 
 const uid = (): string =>
