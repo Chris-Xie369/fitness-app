@@ -5,7 +5,7 @@ import { backupMetaWarning, dismissBackupHint, exportBackup, loadBackupHintTimes
 import { backupHintState } from '../lib/backup'
 import { countsOf, describeCounts, recordCount } from '../collections'
 import { exportPhotosForBackup } from '../lib/photos'
-import { todayStr } from '../lib/date'
+import { dateKey, todayStr } from '../lib/date'
 
 const WEEKDAYS = '日一二三四五六'
 
@@ -234,10 +234,7 @@ export function HistoryTab({
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate()
   const calCells: (string | null)[] = [
     ...Array.from({ length: firstWeekday }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => {
-      const d = i + 1
-      return `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    }),
+    ...Array.from({ length: daysInMonth }, (_, i) => dateKey(new Date(calYear, calMonth, i + 1))),
   ]
   const todayDate = todayStr()
   const pickedWorkout = pickedDate ? workouts.find((w) => w.date === pickedDate) : null

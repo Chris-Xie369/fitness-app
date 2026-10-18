@@ -4,6 +4,9 @@
 const WEEKDAYS = '日一二三四五六'
 const MS_PER_UTC_DAY = 86400000
 
+// 只用于「已过去多少毫秒」这类时长阈值（如 30 天未备份），不能拿来推算日历日期
+export const ELAPSED_DAY_MS = MS_PER_UTC_DAY
+
 export function dateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }

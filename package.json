@@ -9,7 +9,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node scripts/tests/run-tests.mjs"
+    "test": "node scripts/tests/run-tests.mjs",
+    "check": "node scripts/check-invariants.mjs",
+    "verify": "npm run build && npm run lint && npm test && npm run check"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.1",
