@@ -1,5 +1,5 @@
 import type { Workout } from '../types'
-import { mondayOf } from './stats'
+import { dateKey, mondayOf } from './date'
 
 export type CelebrationItem = {
   emoji: string
@@ -65,6 +65,5 @@ export function weekGoalJustReached(
 
 // 周标识（ISO 周一日期），用于"每周只庆祝一次"
 export function weekKey(d = new Date()): string {
-  const monday = mondayOf(d)
-  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
+  return dateKey(mondayOf(d))
 }

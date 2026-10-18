@@ -26,7 +26,9 @@ export function requireLib(name) {
   const src = path.join(root, 'src/lib', `${name}.ts`)
   const srcAlt = path.join(root, 'src', `${name}.ts`)
   const entry = fs.existsSync(src) ? src : srcAlt
-  const npxCli = 'C:/Program Files/nodejs/node_modules/npm/bin/npx-cli.js'
-  execFileSync(process.execPath, [npxCli, 'esbuild', entry, '--bundle', '--format=cjs', `--outdir=${tmpDir}`, '--out-extension:.js=.cjs', '--log-level=warning'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] })
-  return require_(path.join(tmpDir, `${name}.cjs`))
+  const out = path.join(tmpDir, `${name}.cjs`)
+  const cli = path.join(path.dirname(require_.resolve('rolldown/package.json')), 'bin/cli.mjs')
+  execFileSync(process.execPath, [cli, entry, '--format', 'cjs', '--platform', 'node', '--file', out, '--logLevel', 'warn'], { cwd: root, stdio: ['ignore', 'pipe', 'inherit'] })
+  delete require_.cache[out]
+  return require_(out)
 }

@@ -6,18 +6,13 @@ import { kcalFor, searchFoods } from '../lib/foods'
 import { dayBurn, estimateKcal } from '../lib/activity'
 import { ageFromBirthYear, bmrMifflin } from '../lib/body'
 import { ACTIVITY_LEVELS, calorieTarget, dayAdvice, PACE_OPTIONS, TRAINING_DAY_BONUS, weekAdherence, type DietGoal } from '../lib/nutrition'
-import { dayLabel, shiftDate } from '../lib/date'
-import { todayStr } from '../lib/streak'
+import { dayLabel, shiftDate, todayStr } from '../lib/date'
 import { ZeroBar } from '../components/ZeroBar'
 import { MealPlanView } from '../components/MealPlanView'
 import { macroTargets, type ScaledItem } from '../lib/mealplan'
+import { themeColor } from '../lib/theme'
 
 const uid = () => globalThis.crypto?.randomUUID?.() ?? `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
-
-function token(name: string, fallback: string): string {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return v || fallback
-}
 
 type PickedFood = { name: string; kcalPer100g: number; learned?: boolean }
 type Draft = { name: string; kcal: string; grams: string; picked: PickedFood | null }
@@ -159,10 +154,10 @@ export function DietTab({
   const todayGlasses = water.find((w) => w.date === date)?.glasses ?? 0
   const burn = dayBurn(activities, date)
 
-  const clay = token('--color-clay', '#B8553A')
-  const ink = token('--color-ink', '#211C16')
-  const muted = token('--color-muted', '#8C8275')
-  const line = token('--color-line', '#E2DBCD')
+  const clay = themeColor('clay')
+  const ink = themeColor('ink')
+  const muted = themeColor('muted')
+  const line = themeColor('line')
 
   function goTo(next: string) {
     setDate(next)

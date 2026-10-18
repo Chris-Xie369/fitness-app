@@ -1,9 +1,10 @@
+import { ELAPSED_DAY_MS } from './date'
+
 export type BackupHint =
   | { show: false }
   | { show: true; reason: 'never' | 'stale' }
 
-const DAY = 86400000
-const STALE_AFTER = 30 * DAY
+const STALE_AFTER = 30 * ELAPSED_DAY_MS
 // 从未导出过：全部类型（训练/饮食/身体/运动）累计 5 条以上记录时开始提醒（新手前几天不必催）
 const NEVER_MIN_RECORDS = 5
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Workout } from '../types'
-import { computeStreak, todayStr, weekStatus } from '../lib/streak'
+import { computeStreak, weekStatus } from '../lib/streak'
+import { todayStr } from '../lib/date'
 import { GoalRing } from '../components/GoalRing'
 
 const WEEKDAYS = '日一二三四五六'

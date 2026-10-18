@@ -1,9 +1,10 @@
+import { shiftDate, todayStr } from '../lib/date'
 import { useEffect, useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AppSettings, MetricEntry, MetricType } from '../types'
 import { METRIC_LIMITS, ageFromBirthYear, bmi, bmiCategory, bmrMifflin, fatMass, isValidMetricValue, leanMass, movingAverage, weightVelocity } from '../lib/body'
-import { todayStr } from '../lib/streak'
 import { ProgressPhotos } from '../components/ProgressPhotos'
+import { themeColor } from '../lib/theme'
 
 const METRICS: { type: MetricType; label: string; unit: string; placeholder: string; hint: string }[] = [
   { type: 'weight', label: '体重', unit: 'kg', placeholder: '70.5', hint: '晨起空腹、同一台秤；单日波动多为水分，看趋势' },
@@ -14,11 +15,6 @@ const METRICS: { type: MetricType; label: string; unit: string; placeholder: str
   { type: 'upperArm', label: '上臂围', unit: 'cm', placeholder: '33', hint: '屈臂收紧时二头肌最粗处，固定同一侧' },
   { type: 'thigh', label: '大腿围', unit: 'cm', placeholder: '55', hint: '臀褶下方大腿最粗处水平一圈，重心均分双腿' },
 ]
-
-function token(name: string, fallback: string): string {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return v || fallback
-}
 
 export function BodyTab({
   metrics,
@@ -51,9 +47,9 @@ export function BodyTab({
   })
 
   const meta = METRICS.find((m) => m.type === type)!
-  const clay = token('--color-clay', '#B8553A')
-  const muted = token('--color-muted', '#8C8275')
-  const line = token('--color-line', '#E2DBCD')
+  const clay = themeColor('clay')
+  const muted = themeColor('muted')
+  const line = themeColor('line')
 
   const series = useMemo(
     () =>
@@ -78,11 +74,9 @@ export function BodyTab({
   const latest = series[series.length - 1]
   const prev = series[series.length - 2]
 
-  // 日期分量推算（禁毫秒乘除，DST 安全）；不允许选到未来
-  function shiftDate(days: number) {
-    const [y, m, d] = date.split('-').map(Number)
-    const next = new Date(y, m - 1, d + days)
-    const key = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+  // 不允许选到未来
+  function stepDate(days: number) {
+    const key = shiftDate(date, days)
     if (key <= today) setDate(key)
   }
 
@@ -187,9 +181,9 @@ export function BodyTab({
 
       {/* 日期选择：默认今天，可回过去补记（训练/饮食同款语义：同类型同日期=更新） */}
       <div className="mt-4 flex items-center justify-center gap-3 text-[13px]">
-        <button onClick={() => shiftDate(-1)} aria-label="前一天" className="-m-2 p-2 text-muted hover:text-clay">‹</button>
+        <button onClick={() => stepDate(-1)} aria-label="前一天" className="-m-2 p-2 text-muted hover:text-clay">‹</button>
         <span className={date === today ? 'text-clay font-medium' : 'text-ink'}>{date === today ? '今天' : date}</span>
-        <button onClick={() => shiftDate(1)} disabled={date >= today} aria-label="后一天" className="-m-2 p-2 text-muted hover:text-clay disabled:opacity-30">›</button>
+        <button onClick={() => stepDate(1)} disabled={date >= today} aria-label="后一天" className="-m-2 p-2 text-muted hover:text-clay disabled:opacity-30">›</button>
       </div>
 
       {/* 录入 */}
